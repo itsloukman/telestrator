@@ -1,0 +1,291 @@
+<!doctype html>
+<!--
+	video-launcher: frame-accurate feedback on a rendered video, for AI agents.
+	The viewer, one filmstrip of the whole video with a comments track under it, and a sidebar where you write:
+	a note lands at the playhead; attach something you point at in the frame, a drawing, or a dragged range.
+	Served by `npx video-launcher <video>`; notes live next to the video in .video-launcher/, where the MCP
+	server (`npx video-launcher mcp`) reads them, replies and resolves.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>video-launcher</title>
+<style>
+	:root {
+		--bg: #1f1f1f; --chrome: #262626; --panel: #2b2b2b; --panel-2: #323232; --well: #1b1b1b;
+		--line: #3a3a3a; --line-2: #4a4a4a;
+		--ink: #ededed; --muted: #bbbbbb; --dim: #8a8a8a; --faint: #666;
+		--head: #ef6a4c; --pin: #ef6a4c; --range: #6fb3ff; --draw: #ff4f8b;
+		--clip-v: #5d5977; --clip-v-hd: #676386; --clip-v-bd: #7a75a0;
+		--mono: ui-monospace, 'SF Mono', Menlo, monospace;
+	}
+	* { box-sizing: border-box; margin: 0; padding: 0; }
+	html, body { height: 100%; background: var(--bg); color: var(--ink); font: 12.5px/1.4 -apple-system, system-ui, 'Segoe UI', Inter, sans-serif; -webkit-font-smoothing: antialiased; }
+	body { display: grid; grid-template-rows: 44px minmax(0, 1fr) 26px; height: 100vh; overflow: hidden; }
+	button { font: inherit; color: inherit; }
+	kbd { font: 500 10.5px var(--mono); padding: 0 4px; border-radius: 3px; border: 1px solid var(--line-2); color: var(--dim); }
+	.ic { width: 14px; height: 14px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+	/* ---- title bar + toolbar ---- */
+	.brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 13px; }
+	.brand .logo { width: 22px; height: 22px; border-radius: 6px; background: #f4f4f0; display: grid; place-items: center; }
+	.brand .logo svg { width: 13px; height: 13px; fill: #0f0f0c; }
+	.toolbar .title { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.toolbar { display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--chrome); border-bottom: 1px solid var(--line); }
+	.toolbar .gen { color: var(--dim); font-size: 12px; margin-right: 4px; }
+	.toolbar .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+	.toolbar .proj { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+	.tag { font: 600 9.5px/1 var(--mono); letter-spacing: 0.06em; padding: 3px 5px; border-radius: 3px; border: 1px solid var(--line-2); color: var(--dim); text-transform: uppercase; }
+	.sp { flex: 1; }
+	.btn { height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--ink); font-size: 12.5px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+	.btn:hover { background: #3a3a3a; }
+	.btn.on { background: #454545; border-color: #5a5a5a; }
+	.btn.primary { background: var(--ink); color: #111; border-color: var(--ink); }
+	.btn.primary:hover { background: #fff; }
+	.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+	.btn.ghost:hover { background: var(--panel-2); color: var(--ink); }
+	.btn.icon { width: 28px; padding: 0; justify-content: center; }
+
+	/* ---- workspace ---- */
+	.work { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; }
+	.pane { background: var(--panel); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+	.pane-hd { height: 30px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-bottom: 1px solid var(--line); background: var(--chrome); color: var(--muted); font-size: 12px; }
+	.pane-hd strong { color: var(--ink); font-weight: 500; }
+	.pane-hd .sp { flex: 1; }
+	.pane-hd .fit { color: var(--dim); font-size: 11px; }
+
+
+	/* centre: viewer over timeline */
+	.centre { display: grid; grid-template-rows: minmax(0, 1fr) 142px; min-width: 0; }
+	.viewer { background: var(--well); border-bottom: 1px solid var(--line); }
+	.viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; padding: 14px; position: relative; }
+	#stage { position: relative; background: #000; overflow: hidden; box-shadow: 0 0 0 1px #000, 0 10px 40px -10px rgba(0,0,0,0.7); }
+	#stage video { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+	#comp { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; opacity: 0; pointer-events: none; }
+	#overlay { position: absolute; inset: 0; }
+	#overlay { cursor: pointer; }
+	body.pointing #overlay { cursor: crosshair; }
+	#ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+	body.drawing #ink { pointer-events: auto; cursor: crosshair; touch-action: none; }
+	#ink path, #ink rect { fill: none; stroke-width: var(--sw, 7); stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
+	#ink text { font: 700 var(--fs, 44px) -apple-system, system-ui, sans-serif; dominant-baseline: hanging; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 8px; stroke-linejoin: round; }
+	body.drawing.tool-text #ink { cursor: text; }
+	#inkText { position: absolute; z-index: 3; display: none; min-width: 60px; background: rgba(0,0,0,0.25); border: 1px dashed; border-radius: 4px; padding: 0 4px; font-weight: 700; font-family: -apple-system, system-ui, sans-serif; line-height: 1.1; outline: none; }
+	.drawbar { display: none; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--well); }
+	body.drawing .drawbar { display: flex; }
+	.drawbar .tool { width: 28px; height: 28px; border-radius: 6px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+	.drawbar .tool:hover { color: var(--ink); background: #333; }
+	.drawbar .tool.on { background: #474747; color: var(--ink); }
+	.drawbar .dv { width: 1px; height: 18px; background: var(--line-2); margin: 0 5px; }
+	.drawbar .sw { width: 16px; height: 16px; border-radius: 50%; border: 0; margin: 0 3px; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35); }
+	.drawbar .sw.on { outline: 2px solid var(--ink); outline-offset: 2px; }
+	.drawbar .sp { flex: 1; }
+	#hl { position: absolute; border: 1.5px solid var(--pin); background: rgba(239,106,76,0.08); border-radius: 3px; pointer-events: none; display: none; }
+	#hlTag { position: absolute; transform: translateY(-100%); margin-top: -4px; padding: 2px 7px; border-radius: 4px; background: var(--pin); color: #fff; font: 500 11px var(--mono); white-space: nowrap; pointer-events: none; display: none; max-width: 70%; overflow: hidden; text-overflow: ellipsis; }
+	.pin { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: var(--pin); color: #fff; font: 700 11px/22px -apple-system, sans-serif; text-align: center; box-shadow: 0 0 0 3px rgba(239,106,76,0.35); cursor: pointer; }
+	.viewer-ft { height: 38px; flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 10px; border-top: 1px solid var(--line); background: var(--chrome); }
+	.tc { font: 500 13px var(--mono); color: var(--ink); letter-spacing: 0.02em; }
+	.tc .of { color: var(--dim); }
+	.transport { display: flex; gap: 2px; }
+	.transport .btn { width: 30px; padding: 0; justify-content: center; }
+	.viewer-ft .right { justify-self: end; display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+	/* timeline */
+	.timeline { display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+	.tl-body { flex: 1; min-height: 0; overflow: hidden; }
+	#scroll { overflow-x: auto; overflow-y: hidden; position: relative; }
+	#scroll::-webkit-scrollbar { height: 10px; }
+	#scroll::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; border: 2px solid var(--panel); }
+	#inner { position: relative; user-select: none; cursor: text; min-width: 100%; }
+	.row { position: relative; border-bottom: 1px solid var(--line); }
+	.H-ruler { height: 26px; } .H-pic { height: 84px; } .H-notes { height: 30px; border-bottom: 0; background: var(--chrome); }
+	.ruler { background: var(--chrome); cursor: ew-resize; }
+	.ruler .tick { position: absolute; bottom: 0; width: 1px; height: 5px; background: #5a5a5a; }
+	.ruler .tick.big { height: 10px; background: #7a7a7a; }
+	.ruler .lab { position: absolute; top: 4px; font: 500 10px var(--mono); color: var(--dim); padding-left: 3px; white-space: nowrap; }
+	.clip { position: absolute; top: 3px; bottom: 3px; border-radius: 4px; overflow: hidden; border: 1px solid; }
+	.clip .cap { position: absolute; left: 0; right: 0; top: 0; padding: 2px 7px; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 6px; align-items: center; }
+	.clip.pic { background: var(--clip-v); border-color: var(--clip-v-bd); color: #eeeaf8; }
+	.clip.pic .cap { background: var(--clip-v-hd); height: 19px; }
+	.clip.pic .strip { position: absolute; left: 0; right: 0; top: 19px; bottom: 15px; overflow: hidden; background: #000; display: flex; }
+	.clip.pic .strip span { flex: none; height: 100%; background-repeat: no-repeat; border-right: 1px solid rgba(0,0,0,0.35); }
+	.clip.pic .dur { position: absolute; left: 7px; bottom: 1px; font: 500 9.5px var(--mono); color: #d8d4ea; }
+	.clip.pic.on { border-color: #b3aed6; }
+	#rowNotes:empty::before { content: 'Comments'; position: absolute; left: 8px; top: 8px; color: var(--faint); font-size: 11px; }
+	/* every comment is the same clip: its number, its text, a hard left edge on the exact frame; the tint says what kind */
+	.mk { --c: 138,138,130; position: absolute; top: 5px; height: 20px; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 0 7px 0 6px; border-radius: 5px; overflow: hidden; white-space: nowrap; z-index: 1;
+		background: rgba(var(--c), 0.16); border: 1px solid rgba(var(--c), 0.55); border-left: 2px solid rgb(var(--c)); color: rgba(255,255,255,0.82); font: 500 10.5px/1 -apple-system, sans-serif; }
+	.mk b { color: rgb(var(--c)); font-weight: 700; flex: none; }
+	.mk span { overflow: hidden; text-overflow: ellipsis; }
+	.mk.pt { --c: 239,106,76; } .mk.dw { --c: 255,79,139; } .mk.rg { --c: 111,179,255; }
+	.mk:hover { background: rgba(var(--c), 0.26); }
+	.mk.on { background: rgba(var(--c), 0.3); border-color: rgb(var(--c)); }
+	#sel { position: absolute; top: 0; bottom: 0; background: rgba(111,179,255,0.14); border-left: 1px solid var(--range); border-right: 1px solid var(--range); display: none; pointer-events: none; z-index: 3; }
+	#hover { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.22); pointer-events: none; display: none; z-index: 3; }
+	#head { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--head); pointer-events: none; z-index: 4; }
+	#head::before { content: ''; position: absolute; top: 0; left: -6px; width: 13px; height: 14px; background: var(--head); clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); }
+
+	/* inspector */
+	.insp { border-left: 1px solid var(--line); }
+	.composer { padding: 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; background: var(--panel); }
+	.cm-where { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+	.cm-tc { font: 500 12px var(--mono); color: var(--ink); white-space: nowrap; }
+	.cm-scene { color: var(--dim); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+	.chips:empty { display: none; }
+	.chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 24px; padding: 0 4px 0 8px; border-radius: 12px; font-size: 11.5px; border: 1px solid; }
+	.chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.chip.pt { color: #ffb9a8; border-color: rgba(239,106,76,0.55); background: rgba(239,106,76,0.12); }
+	.chip.rg { color: #b9dbff; border-color: rgba(111,179,255,0.55); background: rgba(111,179,255,0.12); }
+	.chip.arm { color: var(--muted); border-color: var(--line-2); border-style: dashed; padding-right: 8px; }
+	.chip button { width: 18px; height: 18px; border-radius: 9px; border: 0; background: rgba(255,255,255,0.08); color: inherit; cursor: pointer; line-height: 1; flex: none; }
+	.chip button:hover { background: rgba(255,255,255,0.18); }
+	#cmText { width: 100%; height: 76px; resize: vertical; border-radius: 7px; border: 1px solid var(--line-2); background: var(--well); color: var(--ink); padding: 8px 9px; font: 13px/1.4 -apple-system, system-ui, sans-serif; outline: none; }
+	#cmText:focus { border-color: #6a6a6a; }
+	.cm-row { display: flex; align-items: center; gap: 6px; }
+	.cm-row .btn.icon { width: 30px; height: 30px; }
+	.cm-row .btn.icon .ic { width: 15px; height: 15px; }
+	#pointBtn.on { background: rgba(239,106,76,0.18); border-color: var(--pin); color: #ffb9a8; }
+	#drawBtn.on { background: rgba(255,79,139,0.18); border-color: var(--draw); color: #ffb3cd; }
+	.chip.dw { color: #ffb3cd; border-color: rgba(255,79,139,0.55); background: rgba(255,79,139,0.12); }
+	.insp-body { flex: 1; min-height: 0; overflow: auto; }
+	#list { padding: 6px; }
+	.note { display: grid; grid-template-columns: 84px 1fr; gap: 9px; padding: 8px; border-radius: 7px; border: 1px solid transparent; cursor: pointer; }
+	.note:hover { background: var(--panel-2); }
+	.note.active { background: #383838; border-color: rgba(255,255,255,0.1); }
+	.note img, .note .noimg { width: 84px; aspect-ratio: 16/9; border-radius: 4px; object-fit: cover; background: #000; border: 1px solid var(--line); }
+	.note .hd { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--dim); min-width: 0; }
+	.note .hd .scn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.note .n { width: 17px; height: 17px; border-radius: 50%; background: var(--pin); color: #fff; font: 700 10px/17px -apple-system, sans-serif; text-align: center; flex: none; }
+	.note .n.r { background: var(--range); }
+	.note .n.t { background: #8a8a82; }
+	.note .tcs { font: 500 11px var(--mono); color: var(--ink); white-space: nowrap; }
+	.note .txt { margin-top: 3px; font-size: 12.5px; white-space: pre-wrap; }
+	.note .el { margin-top: 3px; font: 10.5px var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.note .x { margin-left: auto; color: var(--dim); background: none; border: 0; cursor: pointer; font-size: 15px; line-height: 1; }
+	.note .x:hover { color: var(--ink); }
+	.empty { color: var(--dim); padding: 14px 12px; font-size: 12.5px; line-height: 1.6; }
+	.empty b { color: var(--muted); }
+	.insp-ft { border-top: 1px solid var(--line); padding: 10px; display: flex; gap: 8px; background: var(--chrome); }
+	.insp-ft .btn { height: 32px; }
+	.insp-ft .btn.primary { flex: 1; justify-content: center; }
+
+	.status { display: flex; align-items: center; gap: 14px; padding: 0 12px; background: var(--chrome); border-top: 1px solid var(--line); color: var(--dim); font-size: 11.5px; }
+	.status .sp { flex: 1; }
+	#toast { position: fixed; top: 56px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #111; padding: 8px 14px; border-radius: 8px; font-weight: 500; display: none; z-index: 10; }
+
+	/* agent round-trip: statuses, the thread under a note, a reply box on the selected note */
+	.showres { display: flex; align-items: center; gap: 5px; color: var(--dim); font-size: 11px; cursor: pointer; }
+	.note.resolved, .note.dismissed { opacity: 0.55; }
+	.note.dismissed .txt { text-decoration: line-through; }
+	.note .st { font: 600 9.5px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 5px; border-radius: 3px; flex: none; }
+	.note .st.resolved { color: #7fe0a6; background: rgba(111,214,155,0.14); }
+	.note .st.dismissed { color: var(--dim); background: rgba(255,255,255,0.06); }
+	.thread { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+	.msg { font-size: 12px; line-height: 1.4; padding: 6px 8px; border-radius: 7px; background: var(--well); border: 1px solid var(--line); white-space: pre-wrap; }
+	.msg i { display: block; font-style: normal; font: 600 10px var(--mono); color: var(--dim); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+	.msg.agent { border-color: rgba(111,179,255,0.35); }
+	.msg.agent i { color: var(--range); }
+	.reply { grid-column: 1 / -1; display: flex; gap: 6px; }
+	.reply input { flex: 1; min-width: 0; height: 28px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--well); color: var(--ink); padding: 0 8px; font: 12px -apple-system, system-ui, sans-serif; outline: none; }
+	.pop { position: fixed; top: 48px; right: 12px; width: 420px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; padding: 14px; display: none; z-index: 20; box-shadow: 0 18px 50px -12px rgba(0,0,0,0.85); }
+	.pop.on { display: block; }
+	.pop b { display: block; font-size: 13px; margin-bottom: 6px; }
+	.pop p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 10px; }
+	.pop code { display: block; font: 11.5px var(--mono); background: var(--well); border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; color: var(--ink); overflow-wrap: anywhere; }
+	.pop .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+	.pop .dim { color: var(--dim); font-size: 11px; flex: 1; }
+	.pop .dim i { font-style: normal; font-family: var(--mono); color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="toolbar">
+	<div class="brand"><span class="logo"><svg viewBox="0 0 24 24"><path d="M5 4.5v15l6.5-4.2L18 19.5v-15z"/></svg></span>video-launcher</div>
+	<span class="sep"></span>
+	<span class="title" id="title"></span>
+	<span class="sp"></span>
+	<button class="btn" id="mcpBtn" title="Let your agent read these notes"><svg class="ic" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>Connect agent</button>
+	<button class="btn" id="audioBtn" title="Sound on/off (M)"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path id="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span id="audioTxt">Sound on</span></button>
+</div>
+
+<div class="work">
+	<section class="centre">
+		<div class="pane viewer">
+			<div class="pane-hd"><strong id="vName"></strong><span class="sp"></span><span class="fit" id="compState"></span></div>
+			<div class="viewer-body" id="vbody">
+				<div id="stage">
+					<video id="v" preload="auto" playsinline></video>
+					<iframe id="comp" title="composition (hit-testing only)"></iframe>
+					<div id="overlay"><div id="hl"></div><div id="hlTag"></div></div>
+					<svg id="ink" preserveAspectRatio="none"></svg>
+					<input id="inkText" autocomplete="off" spellcheck="false" />
+				</div>
+			</div>
+			<div class="viewer-ft">
+				<span class="tc" id="tc">00:00:00:00</span>
+				<div class="transport">
+					<button class="btn ghost" id="prevScene" title="Previous scene (↑)"><svg class="ic" viewBox="0 0 24 24"><path d="M6 5v14M18 5l-9 7 9 7z"/></svg></button>
+					<button class="btn ghost" id="back" title="Back 1 frame (←)"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+					<button class="btn ghost" id="play" title="Play/pause (Space)"><svg class="ic" viewBox="0 0 24 24" id="playIc"><path d="M7 5l12 7-12 7z" fill="currentColor"/></svg></button>
+					<button class="btn ghost" id="fwd" title="Forward 1 frame (→)"><svg class="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+					<button class="btn ghost" id="nextScene" title="Next scene (↓)"><svg class="ic" viewBox="0 0 24 24"><path d="M18 5v14M6 5l9 7-9 7z"/></svg></button>
+				</div>
+				<div class="right"><button class="btn ghost icon" id="fs" title="Fullscreen (F)"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>
+			</div>
+		</div>
+
+		<div class="timeline">
+			<div class="tl-body">
+				<div id="scroll">
+					<div id="inner">
+						<div class="row H-ruler ruler" id="ruler"></div>
+						<div class="row H-pic" id="rowPic"></div>
+						<div class="row H-notes" id="rowNotes"></div>
+						<div id="sel"></div><div id="hover"></div><div id="head"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<aside class="pane insp">
+		<div class="pane-hd"><strong>Notes</strong><span class="n" id="nNotes3" style="font:11px var(--mono);color:var(--dim)"></span><span class="sp"></span><label class="showres"><input type="checkbox" id="showResolved" /> Show resolved</label></div>
+		<div class="composer">
+			<div class="cm-where"><span class="cm-tc" id="cmTc"></span><span class="cm-scene" id="cmScene"></span></div>
+			<div class="chips" id="cmChips"></div>
+			<div class="drawbar" id="drawbar">
+				<button class="tool on" data-tool="pen" title="Pen"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16z"/></svg></button>
+				<button class="tool" data-tool="arrow" title="Arrow"><svg class="ic" viewBox="0 0 24 24"><path d="M5 19L19 5M10 5h9v9"/></svg></button>
+				<button class="tool" data-tool="box" title="Box"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/></svg></button>
+				<button class="tool" data-tool="text" title="Text"><svg class="ic" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13"/></svg></button>
+				<span class="dv"></span>
+				<button class="sw on" data-c="#ff4f8b" title="Pink" style="background:#ff4f8b"></button>
+				<button class="sw" data-c="#ff453a" title="Red" style="background:#ff453a"></button>
+				<button class="sw" data-c="#ffd60a" title="Yellow" style="background:#ffd60a"></button>
+				<button class="sw" data-c="#32d74b" title="Green" style="background:#32d74b"></button>
+				<button class="sw" data-c="#0a84ff" title="Blue" style="background:#0a84ff"></button>
+				<button class="sw" data-c="#ffffff" title="White" style="background:#ffffff"></button>
+				<span class="sp"></span>
+				<button class="tool" id="undoInk" title="Undo · ⌘Z"><svg class="ic" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+			</div>
+			<textarea id="cmText" placeholder="What should change here?"></textarea>
+			<div class="cm-row">
+				<button class="btn icon" id="pointBtn" title="Point at something in the frame · P" aria-label="Point"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg></button>
+				<button class="btn icon" id="drawBtn" title="Draw on the frame · D" aria-label="Draw"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16z"/><path d="M13 7l3 3"/></svg></button>
+				<span class="sp"></span>
+				<button class="btn ghost" id="cmCancel" style="display:none">Cancel</button>
+				<button class="btn primary" id="cmAdd" title="⌘↵">Add note</button>
+			</div>
+		</div>
+		<div class="insp-body"><div id="list"></div></div>
+		<div class="insp-ft"><button class="btn" id="clear" title="Delete all notes">Clear</button><button class="btn primary" id="copy" title="Copy the open notes as markdown">Copy for agent</button></div>
+	</aside>
+</div>
+
+<footer class="status"><span>Write in the sidebar · <kbd>P</kbd> point · <kbd>D</kbd> draw on the frame · drag the filmstrip for a range · <kbd>N</kbd> write a note · <kbd>⌘</kbd><kbd>↵</kbd> add · <kbd>Space</kbd> play · <kbd>←</kbd><kbd>→</kbd> frame · <kbd>⇧</kbd> 1 s · <kbd>↑</kbd><kbd>↓</kbd> scene</span><span class="sp"></span><span id="stat"></span></footer>
+<div id="toast"></div>
+<div id="mcpPop" class="pop"><b>Let your agent read these notes</b><p>Add the MCP server once; then ask your agent to “check the video feedback”. It sees every open note with its frame and drawing, can reply to you here, and resolves notes as it fixes them.</p><code id="mcpCmd">claude mcp add video-launcher -- npx -y video-launcher mcp</code><div class="row"><span class="dim">Other clients: command <i>npx</i>, args <i>-y video-launcher mcp</i>, run from your project folder.</div><button class="btn primary" id="mcpCopy">Copy command</button></div></div>
+<script src="/ui/app.js"></script>
+</body>
+</html>
