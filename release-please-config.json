@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "71fa6e16e54474d60d77de3e6efb494ee08b62a5",
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "extra-files": [{ "type": "generic", "path": "src/mcp.js" }]
+    }
+  }
+}
