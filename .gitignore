@@ -3,3 +3,7 @@ node_modules
 .DS_Store
 .env*
 pnpm-lock.yaml
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.claude/

@@ -32,4 +32,4 @@ jobs:
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: |
             The description "{subject}" in "{title}" must start lowercase,
-            e.g. "fix(ui): keep pin inside the frame". See CLAUDE.md.
+            e.g. "fix(ui): keep pin inside the frame". See https://www.conventionalcommits.org/en/v1.0.0/
