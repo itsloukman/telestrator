@@ -99,7 +99,8 @@ export function startServer(project, { port = 4180, host = '127.0.0.1' } = {}) {
 					composition: compName ? '/comp/' + compName.split(sep).map(encodeURIComponent).join('/') : null,
 					fps: r.fps || null, scenes: r.scenes || null, lines: project.lines, words: project.words,
 					reviewFile: pretty(file),
-					videoFile: pretty(project.video)
+					videoFile: pretty(project.video),
+					videoPath: project.video
 				});
 			}
 			if (p === '/api/review' && req.method === 'GET') return send(res, 200, readReview(file));

@@ -38,7 +38,7 @@ A project folder works too: it opens the newest render (`./renders`, `./out`, or
 npx telestrator init
 ```
 
-It finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini CLI, Windsurf, OpenCode and more), adds telestrator to the ones you pick, and offers the Claude Code skill.
+It runs [add-mcp](https://github.com/neon-solutions/add-mcp) (Neon's MCP installer, pinned to 2.4.0), which finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini CLI, Windsurf, OpenCode and more) and adds telestrator to the ones you pick. Then it offers the Claude Code skill. `--yes` skips the questions: telestrator goes into every agent it finds, and the skill is added.
 
 **3. Ask your agent.** Start a new agent session so it loads the tools, then say *"check the video feedback"*.
 
@@ -74,7 +74,7 @@ No MCP? **Copy for agent** in the review gives you the notes as markdown to past
 
 **Is it free?** Yes, it's MIT licensed.
 
-**Does my video leave my machine?** No. It runs locally, and notes are JSON files next to your video in `.telestrator/`. Commit them if you want the feedback in git.
+**Does my video leave my machine?** No. telestrator runs on your machine and uploads nothing: your video stays where it is, and notes are JSON files next to it in `.telestrator/`. One thing to know: when your agent reads the feedback, the notes and the frames it looks at go to its AI provider (Anthropic, OpenAI…), like any file your agent reads. Commit `.telestrator/` if you want the feedback in git.
 
 **Which agents work?** Any agent that supports MCP; `init` sets up the ones you have. Without MCP, use **Copy for agent** and paste.
 
@@ -91,7 +91,7 @@ No MCP? **Copy for agent** in the review gives you the notes as markdown to past
 
 | Agent | Command |
 | --- | --- |
-| Any agent | `npx add-mcp "npx -y telestrator mcp" --name telestrator -g` |
+| Any agent | `npx add-mcp@2.4.0 "npx -y telestrator mcp" --name telestrator -g` |
 | Claude Code | `claude mcp add --scope user telestrator -- npx -y telestrator mcp` |
 | Codex | `codex mcp add telestrator -- npx -y telestrator mcp` |
 | Gemini CLI | `gemini mcp add -s user telestrator npx -- -y telestrator mcp` |

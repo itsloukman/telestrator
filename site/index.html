@@ -485,7 +485,7 @@
 		<dt>Is it free?</dt>
 		<dd>Yes. It's MIT licensed.</dd>
 		<dt>Does my video leave my machine?</dt>
-		<dd>No. It runs locally, and notes are JSON files next to your video in <code>.telestrator/</code>. Commit them if you want the feedback in git.</dd>
+		<dd>No. telestrator runs on your machine and uploads nothing: your video stays where it is, and notes are JSON files next to it in <code>.telestrator/</code>. One thing to know: when your agent reads the feedback, the notes and the frames it looks at go to its AI provider (Anthropic, OpenAI…), like any file your agent reads. Commit <code>.telestrator/</code> if you want the feedback in git.</dd>
 		<dt>Which agents work?</dt>
 		<dd>Any agent that supports MCP. <code>init</code> sets up the ones you have. Without MCP, use “Copy for agent” and paste.</dd>
 		<dt>Do I need HyperFrames?</dt>

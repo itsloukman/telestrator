@@ -16,7 +16,8 @@ const HELP = `telestrator — point, draw and comment on any frame of a rendered
       --no-open              Don't open the browser
 
   npx telestrator init [--yes]
-      Connect your agents (Claude Code, Codex, Cursor, VS Code, Gemini…) and add the Claude Code skill.
+      Connect your agents (Claude Code, Codex, Cursor, VS Code, Gemini…) with add-mcp@2.4.0, and add the Claude
+      Code skill. --yes adds it to every agent add-mcp finds, and adds the skill, without asking.
 
   npx telestrator doctor [video | folder]
       Check the setup: Node, ffmpeg, which agents are connected, and what a video resolves to.
@@ -24,7 +25,7 @@ const HELP = `telestrator — point, draw and comment on any frame of a rendered
   npx telestrator mcp [--root <dir>]
       MCP server over stdio for agents: list_reviews, get_feedback, watch_feedback, get_frame, acknowledge, reply,
       resolve, dismiss, add_note.
-      Any agent:    npx add-mcp "npx -y telestrator mcp" --name telestrator -g
+      Any agent:    npx add-mcp@2.4.0 "npx -y telestrator mcp" --name telestrator -g
       Claude Code:  claude mcp add --scope user telestrator -- npx -y telestrator mcp
       Codex:        codex mcp add telestrator -- npx -y telestrator mcp
 `;

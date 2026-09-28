@@ -8,10 +8,16 @@ import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
 
 const SKILL = join(dirname(fileURLToPath(import.meta.url)), '..', 'skills', 'telestrator');
+// Neon's MCP installer, which knows where each agent keeps its MCP settings. Pinned, so a new release of it can't
+// change what runs on your machine
+const ADD_MCP = 'add-mcp@2.4.0';
 
 export async function init({ yes = false } = {}) {
-	console.log('\n  Connecting telestrator to your agents. add-mcp finds the ones you have and asks which to add it to.\n');
-	const r = spawnSync('npx', ['-y', 'add-mcp', 'npx -y telestrator mcp', '--name', 'telestrator', '-g', ...(yes ? ['-y'] : [])], { stdio: 'inherit', shell: process.platform === 'win32' });
+	// what runs, and what it writes, said before it runs
+	console.log(`\n  Connecting telestrator to your agents with ${ADD_MCP} (Neon's MCP installer, run with npx).`);
+	console.log('  It finds the agents you have and adds a "telestrator" server (npx -y telestrator mcp) to the MCP settings of');
+	console.log(yes ? '  every one it finds, without asking (--yes). If it finds none, to every agent it supports.\n' : '  each one you pick.\n');
+	const r = spawnSync('npx', ['-y', ADD_MCP, 'npx -y telestrator mcp', '--name', 'telestrator', '-g', ...(yes ? ['-y'] : [])], { stdio: 'inherit', shell: process.platform === 'win32' });
 	if (r.status !== 0) console.log('\n  add-mcp didn\'t finish. Add it by hand instead: "Connect agent" in the review, or the README.');
 
 	const claude = join(homedir(), '.claude');

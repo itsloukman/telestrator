@@ -6,7 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { execFileSync } from 'node:child_process';
-import { resolve, basename, parse } from 'node:path';
+import { resolve, basename, dirname, parse } from 'node:path';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { findReviews, recentReviews, readReview, reviewPath, updateReview, rel } from './store.js';
@@ -28,8 +28,11 @@ export async function startMcp({ root = process.cwd() } = {}) {
 	const wide = root === resolve(homedir()) || root === parse(root).root;
 	const reviews = () => {
 		const found = wide ? [] : findReviews(root);
-		return found.length ? found : recentReviews();
+		// none here: the ones opened lately in other folders, marked so every answer says where they are
+		return found.length ? found : recentReviews().map((x) => ({ ...x, elsewhere: true }));
 	};
+	// said first in any answer about a review from another folder, so the agent doesn't go and change the wrong project
+	const away = (x) => (x.elsewhere ? [text(`⚠ This review is from another folder: ${dirname(x.review.video)}. There are no reviews in ${root}, where you were started. Make sure that's the project the user means before changing any files; if it isn't, ask them to open their video with \`npx telestrator <video>\`.`)] : []);
 
 	// which review: a video path, a review file, part of a title/file name; default = the most recently touched one
 	function pick(ref) {
@@ -60,9 +63,11 @@ export async function startMcp({ root = process.cwd() } = {}) {
 	}, async () => {
 		const all = reviews();
 		if (!all.length) return { content: [text(`No reviews under ${root}, and none opened lately. The user starts one with: npx telestrator <video>`)] };
-		return { content: [text(all.map(({ file, review: r }) => {
+		const head = all[0].elsewhere ? `No reviews in ${root}. These were opened lately in other folders; make sure one is the project the user means before changing any files:\n` : '';
+		return { content: [text(head + all.map(({ file, review: r, elsewhere }) => {
 			const open = (r.notes || []).filter(isOpen).length;
-			return `- ${r.title} — ${open} open / ${(r.notes || []).length} total · video: ${rel(root, r.video)} · review: ${rel(root, file)}`;
+			const at = (f) => (elsewhere ? f : rel(root, f));
+			return `- ${r.title} — ${open} open / ${(r.notes || []).length} total · video: ${at(r.video)} · review: ${at(file)}`;
 		}).join('\n'))] };
 	});
 
@@ -87,8 +92,8 @@ export async function startMcp({ root = process.cwd() } = {}) {
 			images: z.boolean().optional().describe('Attach each note\'s frame. Default: true')
 		}
 	}, async ({ review, status = 'open', images = true }) => {
-		const { review: r } = pick(review);
-		return { content: feedback(r, (r.notes || []).filter((n) => matches(n, status)), { images, status }) };
+		const x = pick(review), r = x.review;
+		return { content: [...away(x), ...feedback(r, (r.notes || []).filter((n) => matches(n, status)), { images, status })] };
 	});
 
 	// Hands-free: block until the reviewer leaves notes nobody has picked up, wait a moment for more, return the batch.
@@ -114,8 +119,9 @@ export async function startMcp({ root = process.cwd() } = {}) {
 		// the reviewer just started writing: give them a moment to add the rest of the batch
 		if (!already && batchWindowSeconds) { await sleep(batchWindowSeconds * 1000); found = waiting(); }
 		const content = [];
-		for (const { review: r, pending } of found) {
-			const all = r.notes || [];
+		for (const x of found) {
+			const { review: r, pending } = x, all = r.notes || [];
+			content.push(...away(x));
 			const md = [`# New video feedback — ${r.title || r.video}`, `${pending.length} pending note${pending.length === 1 ? '' : 's'}. Acknowledge each one as you pick it up, then resolve it.`, r.composition ? `Composition: ${r.composition}` : null, ''].filter((x) => x !== null).join('\n');
 			content.push(text(md + pending.map((n) => noteMarkdown(r, n, all.indexOf(n), { withId: true })).join('\n\n')));
 			for (const n of pending) { const img = image(n.thumb); if (img) content.push(text(`Frame for note ${all.indexOf(n) + 1} (id ${n.id}) at ${n.t.toFixed(2)}s:`), img); }
@@ -136,7 +142,7 @@ export async function startMcp({ root = process.cwd() } = {}) {
 			y: z.number().min(0).max(1).optional().describe('Where in the frame, 0–1 from the top')
 		}
 	}, async (a) => {
-		const { file, review: r } = pick(a.review);
+		const x = pick(a.review), { file, review: r } = x;
 		const n = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), by: 'agent', status: 'open', thread: [], created: new Date().toISOString(), t: a.t, text: a.text };
 		n.kind = a.t2 != null ? 'range' : a.x != null && a.y != null ? 'point' : 'time';
 		if (a.t2 != null) n.t2 = a.t2;
@@ -148,7 +154,7 @@ export async function startMcp({ root = process.cwd() } = {}) {
 			rv.notes.sort((p, q) => p.t - q.t);
 			out = noteMarkdown(rv, n, rv.notes.indexOf(n), { withId: true });
 		});
-		return { content: [text('Added. The reviewer sees it in their review UI:\n\n' + out)] };
+		return { content: [...away(x), text('Added. The reviewer sees it in their review UI:\n\n' + out)] };
 	});
 
 	server.registerTool('get_frame', {
@@ -156,19 +162,19 @@ export async function startMcp({ root = process.cwd() } = {}) {
 		description: 'Grab one frame of the video at a time in seconds, as an image (needs ffmpeg on PATH). Use it to check a spot the feedback talks about, or to verify a re-render.',
 		inputSchema: { review: reviewArg, t: z.number().describe('Time in seconds'), width: z.number().optional().describe('Output width in px, default 960') }
 	}, async ({ review, t, width = 960 }) => {
-		const { review: r } = pick(review);
+		const x = pick(review), r = x.review;
 		let buf;
 		try {
 			buf = grabFrame(r.video, t, width);
 		} catch (e) {
 			return { isError: true, content: [text('Could not grab a frame (is ffmpeg installed and on PATH?): ' + String(e.message || e).split('\n')[0])] };
 		}
-		return { content: [text(`${basename(r.video)} at ${t.toFixed(2)}s`), { type: 'image', mimeType: 'image/jpeg', data: buf.toString('base64') }] };
+		return { content: [...away(x), text(`${basename(r.video)} at ${t.toFixed(2)}s`), { type: 'image', mimeType: 'image/jpeg', data: buf.toString('base64') }] };
 	});
 
 	const act = (name, title, description, extra, fn) =>
 		server.registerTool(name, { title, description, inputSchema: { review: reviewArg, id: z.string().describe('The note id (from get_feedback)'), ...extra } }, async (args) => {
-			const { file } = pick(args.review);
+			const x = pick(args.review), { file } = x;
 			let out;
 			updateReview(file, (r) => {
 				const n = (r.notes || []).find((x) => x.id === args.id);
@@ -176,7 +182,7 @@ export async function startMcp({ root = process.cwd() } = {}) {
 				fn(n, args);
 				out = noteMarkdown(r, n, r.notes.indexOf(n), { withId: true });
 			});
-			return { content: [text(out)] };
+			return { content: [...away(x), text(out)] };
 		});
 	const say = (n, t) => t && (n.thread ||= []).push({ from: 'agent', text: t, at: new Date().toISOString() });
 	act('acknowledge', 'Acknowledge a note', 'Tell the reviewer you have seen a note and are working on it. It shows as acknowledged in their review UI; resolve it when done.', {}, (n) => { n.status = 'acknowledged'; });

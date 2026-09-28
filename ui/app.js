@@ -20,7 +20,23 @@
 	document.addEventListener('visibilitychange', wake);
 	window.addEventListener('pointerdown', wake, true);
 	setTimeout(wake, 1500);
-	await new Promise((ok) => (v.readyState >= 1 ? ok() : v.addEventListener('loadedmetadata', ok, { once: true })));
+	// a file the browser can't decode (ProRes, some HEVC or MKV) errors out, or loads with no picture: say so, and how to
+	// convert it, instead of leaving a blank page
+	const playable = await new Promise((ok) => {
+		if (v.readyState >= 1) return ok(v.videoWidth > 0);
+		v.addEventListener('loadedmetadata', () => ok(v.videoWidth > 0), { once: true });
+		v.addEventListener('error', () => ok(false), { once: true });
+	});
+	if (!playable) {
+		const box = document.createElement('div');
+		box.className = 'unplayable';
+		box.innerHTML = '<b>This video can’t play in your browser.</b><p>Browsers play MP4 (H.264) and WebM. ProRes, and some HEVC or MKV files, don’t. Render it as an H.264 MP4, or convert this file:</p><code></code><p class="dim">Then open the new file with telestrator.</p>';
+		const out = P.videoPath.replace(/\.[^./\\]+$/, '') + '-h264.mp4';
+		box.querySelector('code').textContent = `ffmpeg -i "${P.videoPath}" -c:v libx264 -pix_fmt yuv420p -c:a aac "${out}"`;
+		$('#vbody').replaceChildren(box);
+		$('#stat').textContent = P.videoFile + ' · can’t play in this browser';
+		return;
+	}
 	W = v.videoWidth || W; H = v.videoHeight || H; DUR = v.duration || DUR;
 
 	// ---- helpers ----------------------------------------------------------------------------------------------
@@ -46,7 +62,7 @@
 	stat();
 	$('#compState').textContent = P.composition ? 'loading composition…' : 'video only · points give frame coordinates';
 	function counts() { const open = notes.filter(isOpenN).length; $('#nNotes3').textContent = notes.length ? `${open} open` + (open < notes.length ? ` · ${notes.length - open} closed` : '') : ''; }
-	function audioUi() { $('#audioTxt').textContent = v.muted ? 'Sound off' : 'Sound on'; $('#waves').style.display = v.muted ? 'none' : ''; $('#audioBtn').classList.toggle('on', !v.muted); }
+	function audioUi() { $('#audioBtn').title = (v.muted ? 'Sound off' : 'Sound on') + ' (M)'; $('#waves').style.display = v.muted ? 'none' : ''; $('#mute').style.display = v.muted ? '' : 'none'; }
 	$('#audioBtn').onclick = () => { v.muted = !v.muted; localStorage.setItem('vl:muted', v.muted ? '1' : '0'); audioUi(); };
 	audioUi();
 	$('#themeBtn').onclick = () => { const t = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'; document.documentElement.dataset.theme = t; localStorage.setItem('vl:theme', t); };
@@ -55,7 +71,7 @@
 	// how to add the MCP server, per agent; "Any agent" lets add-mcp find the installed ones and write each one's config
 	const MCP_JSON = JSON.stringify({ mcpServers: { 'telestrator': { command: 'npx', args: ['-y', 'telestrator', 'mcp'] } } }, null, 2);
 	const AGENTS = [
-		{ id: 'any', name: 'Any agent', cmd: 'npx add-mcp "npx -y telestrator mcp" --name telestrator -g', hint: 'Finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini, Windsurf, OpenCode…) and adds it to each one you pick.' },
+		{ id: 'any', name: 'Any agent', cmd: 'npx add-mcp@2.4.0 "npx -y telestrator mcp" --name telestrator -g', hint: 'Finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini, Windsurf, OpenCode…) and adds it to each one you pick.' },
 		{ id: 'claude', name: 'Claude Code', cmd: 'claude mcp add --scope user telestrator -- npx -y telestrator mcp', hint: 'Then start a new Claude Code session.' },
 		{ id: 'codex', name: 'Codex', cmd: 'codex mcp add telestrator -- npx -y telestrator mcp', hint: 'Then start a new Codex session.' },
 		{ id: 'cursor', name: 'Cursor', cmd: MCP_JSON, json: true, hint: 'Paste into ~/.cursor/mcp.json (merge with any servers already there).' },

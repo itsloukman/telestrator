@@ -69,8 +69,13 @@ test('an agent started outside the project finds the reviews opened lately', asy
 	try {
 		const list = await client.callTool({ name: 'list_reviews', arguments: {} });
 		assert.match(list.content[0].text, /promo\.mp4 — 1 open \/ 1 total/);
+		assert.match(list.content[0].text, /^No reviews in .*opened lately in other folders/);
+		// every answer about it says it's from another folder, first, so the agent checks before changing files
 		const fb = await client.callTool({ name: 'get_feedback', arguments: {} });
-		assert.match(fb.content[0].text, /Louder/);
+		assert.match(fb.content[0].text, /^⚠ This review is from another folder: .*vl-proj-/);
+		assert.match(fb.content[1].text, /Louder/);
+		const res = await client.callTool({ name: 'resolve', arguments: { id: 'n1', summary: 'Louder now' } });
+		assert.match(res.content[0].text, /another folder/);
 	} finally {
 		await client.close();
 	}
