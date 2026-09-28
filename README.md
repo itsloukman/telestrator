@@ -2,7 +2,9 @@
 
 **Point at the frame. Your agent fixes the video.**
 
-[telestrator.tv](https://telestrator.tv) · [npm](https://www.npmjs.com/package/telestrator)
+[telestrator.tv](https://telestrator.tv) · [npm](https://www.npmjs.com/package/telestrator) · MIT
+
+![The telestrator review: a note pinned on the tagline, resolved by the agent, and a drawing it has picked up](https://raw.githubusercontent.com/itsloukman/telestrator/main/docs/review.png)
 
 You made a video with an agent: [HyperFrames](https://github.com/heygen-com/hyperframes), [Remotion](https://remotion.dev), or anything else that renders an MP4. Now you need to tell the agent what to change. "The tagline at 0:12 is too small" is a guess the agent has to decode. With telestrator you pause on the frame, **point** at it or **draw** on it, write one line, and your agent gets back exactly this:
 
@@ -18,21 +20,27 @@ You made a video with an agent: [HyperFrames](https://github.com/heygen-com/hype
 
 It also gets **the frame itself, with your pin or drawing on it**, as an image. Then it fixes the source, re-renders, checks the frame, and closes the note, and you watch that happen in the review.
 
-## Quick start
+## Get started
+
+You need **Node 18+**. [ffmpeg](https://ffmpeg.org) is optional: with it, your agent also sees the frames (`brew install ffmpeg`).
+
+**1. Open a video.** The review opens in your browser.
 
 ```sh
 npx telestrator path/to/video.mp4
 ```
 
-A folder works too, and resolves to its newest render (`./renders`, `./out`, or the folder). The review opens in your browser.
+A project folder works too: it opens the newest render (`./renders`, `./out`, or the folder).
 
-Then connect your agent, once:
+**2. Connect your agent, once.**
 
 ```sh
 npx telestrator init
 ```
 
-It finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini CLI, Windsurf, OpenCode and more), adds telestrator to the ones you pick, and offers the Claude Code skill. Start a new agent session, then ask it to *"check the video feedback"*.
+It finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini CLI, Windsurf, OpenCode and more), adds telestrator to the ones you pick, and offers the Claude Code skill.
+
+**3. Ask your agent.** Start a new agent session so it loads the tools, then say *"check the video feedback"*.
 
 Something off? `npx telestrator doctor` checks Node, ffmpeg, which agents are connected, and what a video resolves to.
 
@@ -46,13 +54,38 @@ Write in the sidebar and the note lands at the playhead. Before you press **Add 
 
 Notes show their status as your agent works: **acknowledged** when it picks one up, then **resolved** or **dismissed** with a line on why. It can also ask you a question under a note, and you answer in the same thread. Notes the agent leaves itself are marked **from agent**.
 
+`Space` plays, `←` `→` step one frame, `N` writes a note, `⌘↵` adds it. [All shortcuts](#reference).
+
 ## Working with your agent
 
 - **"Check the video feedback"**: the agent reads every open note with its frame, acknowledges it, fixes the source, re-renders, checks the frame, and resolves it.
 - **"Watch mode"**: the agent waits for your notes while you keep reviewing, and handles each batch as it arrives.
 - **"Critique the render"**: the agent steps through the video frame by frame and leaves its own notes for you to accept or dismiss.
 
-## Connecting an agent by hand
+No MCP? **Copy for agent** in the review gives you the notes as markdown to paste.
+
+## Works with
+
+- **HyperFrames**: pointing names the exact element on that frame, with its source line and styles.
+- **Remotion**: points at the spot in the frame; scenes and captions come from a [sidecar file](#reference).
+- **Any MP4, MOV or WebM**: the spot, the time, the frame, and captions from a `.srt` or `.vtt`.
+
+## Questions
+
+**Is it free?** Yes, it's MIT licensed.
+
+**Does my video leave my machine?** No. It runs locally, and notes are JSON files next to your video in `.telestrator/`. Commit them if you want the feedback in git.
+
+**Which agents work?** Any agent that supports MCP; `init` sets up the ones you have. Without MCP, use **Copy for agent** and paste.
+
+**Do I need HyperFrames?** No, any video works. With a HyperFrames composition, pointing also knows which element you mean and where it's written.
+
+**Something isn't working?** Run `npx telestrator doctor`. It checks Node, ffmpeg, your agents, and what your video resolves to. Still stuck? [Open an issue](https://github.com/itsloukman/telestrator/issues).
+
+## Reference
+
+<details>
+<summary><b>Connect an agent by hand</b></summary>
 
 `init` does this for you. To add it yourself:
 
@@ -65,9 +98,12 @@ Notes show their status as your agent works: **acknowledged** when it picks one 
 | VS Code | `code --add-mcp '{"name":"telestrator","command":"npx","args":["-y","telestrator","mcp"]}'` |
 | Cursor, Windsurf, others | a stdio server: command `npx`, args `["-y", "telestrator", "mcp"]` (e.g. in `~/.cursor/mcp.json`) |
 
-The review's **Connect agent** menu shows the same. Without MCP, **Copy for agent** gives you the notes as markdown to paste.
+The review's **Connect agent** menu shows the same.
 
-## For agents (MCP)
+</details>
+
+<details>
+<summary><b>MCP tools</b></summary>
 
 | Tool | What it does |
 | --- | --- |
@@ -85,7 +121,10 @@ The MCP server reads and writes the same review files as the UI, so the UI doesn
 
 It looks for reviews under the folder the agent starts it in (or `--root <dir>`). When there are none there, as when an IDE or desktop app starts it from your home folder, it uses the reviews you opened lately, listed in `~/.telestrator/recent.json`.
 
-## What it knows about your video
+</details>
+
+<details>
+<summary><b>What it knows about your video, and how pointing works</b></summary>
 
 | You have | Pointing | Scenes on the timeline | What's being said |
 | --- | --- | --- | --- |
@@ -95,7 +134,7 @@ It looks for reviews under the folder the agent starts it in (or `--root <dir>`)
 
 Notes always carry **seconds and frame numbers**. Pass `--fps` to match your composition.
 
-**How pointing works.** telestrator serves the composition from the same origin and injects a small adapter. It seeks every `window.__timelines` GSAP timeline to the time you paused on and applies clip visibility, then the UI hit-tests the DOM exactly where you clicked. It follows the HyperFrames contract, so it works without the HyperFrames runtime. If your composition drives itself some other way, give it a hook:
+telestrator serves the composition from the same origin and injects a small adapter. It seeks every `window.__timelines` GSAP timeline to the time you paused on and applies clip visibility, then the UI hit-tests the DOM exactly where you clicked. It follows the HyperFrames contract, so it works without the HyperFrames runtime. If your composition drives itself some other way, give it a hook:
 
 ```html
 <script>
@@ -106,7 +145,10 @@ Notes always carry **seconds and frame numbers**. Pass `--fps` to match your com
 </script>
 ```
 
-### The sidecar (optional)
+</details>
+
+<details>
+<summary><b>Sidecar file (scenes, transcript)</b></summary>
 
 A JSON file named `<video>.review.json`, or `telestrator.json`, next to the video. Every key is optional:
 
@@ -122,11 +164,17 @@ A JSON file named `<video>.review.json`, or `telestrator.json`, next to the vide
 
 `file` shows up in the feedback, so the agent knows which source file owns the scene. If your pipeline knows its scene boundaries and voice-over timing, write this file at render time.
 
-## Where notes live
+</details>
+
+<details>
+<summary><b>Where notes live</b></summary>
 
 Each review is saved to `<video folder>/.telestrator/<video file name>.json`. Everything stays on your machine. Commit the folder if you want the feedback in git, or add `.telestrator` to `.gitignore`.
 
-## CLI
+</details>
+
+<details>
+<summary><b>CLI</b></summary>
 
 ```
 npx telestrator <video | folder> [--composition <html> | --no-composition] [--captions <srt|vtt>]
@@ -136,7 +184,10 @@ npx telestrator doctor [video | folder]
 npx telestrator mcp [--root <dir>]
 ```
 
-## Keys
+</details>
+
+<details>
+<summary><b>Keyboard shortcuts</b></summary>
 
 | Key | Action |
 | --- | --- |
@@ -153,6 +204,8 @@ npx telestrator mcp [--root <dir>]
 | `F` | fullscreen |
 
 The review follows your system's light or dark setting; the toolbar switch overrides it.
+
+</details>
 
 ## Development
 
