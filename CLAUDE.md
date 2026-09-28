@@ -34,3 +34,27 @@ only takes squash merges titled from the PR, so nothing else reaches the changel
 
 Never hand-edit `version` in `package.json`, `.release-please-manifest.json`, or `CHANGELOG.md`:
 release-please owns them.
+
+## Shipping a change
+
+`main` is protected: no direct pushes, squash merge only, the `conventional-commit` check must pass.
+
+1. Branch off `main`, commit (Conventional Commits), push, `gh pr create` with a conventional title.
+2. `gh pr merge <n> --squash` once the check is green.
+3. Changing anything in `.github/workflows/` needs a `gh` token with the `workflow` scope; if the push
+   is rejected for that, `gh auth switch -u itsloukman` (the account that has it) and push again.
+
+## Releasing
+
+Never run `npm publish` or create tags/releases by hand. The flow is:
+
+1. Every `feat`/`fix` merged to `main` makes release-please open or update a PR titled
+   `chore(main): release X.Y.Z`, with the version bump and the `CHANGELOG.md` entry.
+2. To release: review that PR, then `gh pr merge <n> --squash --admin`. `--admin` is required:
+   GitHub doesn't run checks on PRs opened by Actions, so the required check never reports.
+3. Merging it tags `vX.Y.Z`, creates the GitHub release, runs `npm test` and publishes to npm
+   through Trusted Publishing (OIDC, no token). npm trusts exactly `itsloukman/telestrator` +
+   `.github/workflows/release-please.yml`: renaming that file breaks publishing.
+4. Check it landed: `gh run list --workflow release-please --limit 1` and `npm view telestrator version`.
+
+To force a specific version (e.g. `1.0.0`), add a `Release-As: 1.0.0` footer to a commit.
