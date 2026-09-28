@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- The social preview (og.png, 1200×630): rendered from this page with headless Chrome. Not linked from the site. -->
+<html>
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+	* { margin: 0; padding: 0; box-sizing: border-box; }
+	html, body { width: 1200px; height: 630px; overflow: hidden; background: #111110; color: #ededeb; font-family: 'Instrument Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+	.l { position: absolute; left: 64px; top: 0; bottom: 0; width: 400px; display: flex; flex-direction: column; justify-content: center; }
+	.mark { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 38px; }
+	.mark i { width: 34px; height: 34px; border-radius: 9px; background: #ef6a4c; display: grid; place-items: center; }
+	.mark i::after { content: ''; width: 12px; height: 16px; background: #fff; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%); }
+	h1 { font-size: 50px; line-height: 1.02; font-weight: 600; letter-spacing: -0.04em; }
+	h1 span { color: #9a9993; }
+	.url { margin-top: 34px; font: 500 19px 'IBM Plex Mono', monospace; color: #ef6a4c; }
+	.shot { position: absolute; left: 500px; top: 78px; width: 860px; height: 465px; border-radius: 12px; overflow: hidden; border: 0; box-shadow: 0 0 0 1px #2e2e2c, 0 40px 80px -30px rgba(0,0,0,0.9); }
+</style>
+</head>
+<body>
+	<div class="l">
+		<div class="mark"><i></i>telestrator</div>
+		<h1>Point at the frame. <span>Your agent fixes the video.</span></h1>
+		<div class="url">telestrator.tv</div>
+	</div>
+	<iframe class="shot" id="shot" src="index.html"></iframe>
+	<script>
+		// show only the demo, dark, frozen on the moment the agent has fixed the note
+		document.getElementById('shot').addEventListener('load', async (e) => {
+			const d = e.target.contentDocument, w = e.target.contentWindow;
+			d.documentElement.dataset.theme = 'dark';
+			const s = d.createElement('style');
+			s.textContent = 'body{max-width:none;padding:0;margin:0} body>*:not(section:first-of-type),nav,.lede,section>.cta,.demo-cap,h1{display:none!important} section{margin:0} .demo-wrap{width:860px!important;left:0!important;transform:none!important;border-radius:0;box-shadow:none;margin:0}';
+			d.head.appendChild(s);
+			await d.fonts.ready;
+			for (const a of d.getAnimations()) { a.pause(); a.currentTime = 12400; }
+		});
+	</script>
+</body>
+</html>

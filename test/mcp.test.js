@@ -1,4 +1,4 @@
-// End to end over stdio: a real MCP client talks to `video-launcher mcp` about a review file on disk.
+// End to end over stdio: a real MCP client talks to `telestrator mcp` about a review file on disk.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
@@ -13,8 +13,8 @@ const PIXEL = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQ
 
 test('agents read, reply to and resolve feedback', async () => {
 	const root = mkdtempSync(join(tmpdir(), 'vl-'));
-	mkdirSync(join(root, 'renders', '.video-launcher'), { recursive: true });
-	const file = join(root, 'renders', '.video-launcher', 'film.mp4.json');
+	mkdirSync(join(root, 'renders', '.telestrator'), { recursive: true });
+	const file = join(root, 'renders', '.telestrator', 'film.mp4.json');
 	writeFileSync(file, JSON.stringify({
 		version: 1, title: 'film.mp4', video: join(root, 'renders', 'film.mp4'), width: 1920, height: 1080, fps: 30, duration: 12,
 		scenes: [{ id: 'intro', name: 'Intro', start: 0, file: 'scenes/intro.html' }, { id: 'demo', name: 'Demo', start: 5 }],
@@ -59,11 +59,11 @@ test('an agent started outside the project finds the reviews opened lately', asy
 	const home = mkdtempSync(join(tmpdir(), 'vl-home-'));
 	const project = mkdtempSync(join(tmpdir(), 'vl-proj-'));
 	const elsewhere = mkdtempSync(join(tmpdir(), 'vl-else-'));
-	mkdirSync(join(project, '.video-launcher'), { recursive: true });
-	const file = join(project, '.video-launcher', 'promo.mp4.json');
+	mkdirSync(join(project, '.telestrator'), { recursive: true });
+	const file = join(project, '.telestrator', 'promo.mp4.json');
 	writeFileSync(file, JSON.stringify({ version: 1, title: 'promo.mp4', video: join(project, 'promo.mp4'), notes: [{ id: 'n1', kind: 'time', t: 1, text: 'Louder', status: 'open', thread: [] }] }));
-	mkdirSync(join(home, '.video-launcher'), { recursive: true });
-	writeFileSync(join(home, '.video-launcher', 'recent.json'), JSON.stringify([file, join(home, 'gone.json')]));
+	mkdirSync(join(home, '.telestrator'), { recursive: true });
+	writeFileSync(join(home, '.telestrator', 'recent.json'), JSON.stringify([file, join(home, 'gone.json')]));
 	const client = new Client({ name: 'test', version: '1.0.0' });
 	await client.connect(new StdioClientTransport({ command: process.execPath, args: [cli, 'mcp', '--root', elsewhere], env: { ...process.env, HOME: home } }));
 	try {

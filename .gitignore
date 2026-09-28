@@ -1,5 +1,5 @@
 node_modules
-.video-launcher
+.telestrator
 .DS_Store
 .env*
 pnpm-lock.yaml

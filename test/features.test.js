@@ -11,7 +11,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { noteMarkdown, reviewMarkdown } from '../src/format.js';
 
-process.env.HOME = mkdtempSync(join(tmpdir(), 'vl-home-')); // keep ~/.video-launcher out of the real home
+process.env.HOME = mkdtempSync(join(tmpdir(), 'vl-home-')); // keep ~/.telestrator out of the real home
 const cli = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 const hasFfmpeg = (() => { try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 
@@ -40,11 +40,11 @@ async function mcp(root) {
 }
 function project(notes) {
 	const root = mkdtempSync(join(tmpdir(), 'vl-'));
-	mkdirSync(join(root, '.video-launcher'));
+	mkdirSync(join(root, '.telestrator'));
 	const video = join(root, 'film.mp4');
 	if (hasFfmpeg) execFileSync('ffmpeg', ['-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=30:duration=3', '-pix_fmt', 'yuv420p', video]);
 	else writeFileSync(video, '');
-	const file = join(root, '.video-launcher', 'film.mp4.json');
+	const file = join(root, '.telestrator', 'film.mp4.json');
 	writeFileSync(file, JSON.stringify({ version: 1, title: 'film.mp4', video, width: 320, height: 180, fps: 30, notes }));
 	return { root, file, video };
 }

@@ -1,74 +1,105 @@
-# video-launcher
+# telestrator
 
-Frame-accurate feedback on a rendered video, for AI agents.
+**Point at the frame. Your agent fixes the video.**
 
-You made a video with an agent: [HyperFrames](https://github.com/heygen-com/hyperframes), [Remotion](https://remotion.dev), or anything else that renders an MP4. Now you need to tell the agent what to change. "The title at 0:12 is too small" is a guess the agent has to decode. With video-launcher you pause on the frame, **point** at the title or **draw** on it, write one line, and your agent gets back exactly this:
+[telestrator.tv](https://telestrator.tv) · [npm](https://www.npmjs.com/package/telestrator)
+
+You made a video with an agent: [HyperFrames](https://github.com/heygen-com/hyperframes), [Remotion](https://remotion.dev), or anything else that renders an MP4. Now you need to tell the agent what to change. "The tagline at 0:12 is too small" is a guess the agent has to decode. With telestrator you pause on the frame, **point** at it or **draw** on it, write one line, and your agent gets back exactly this:
 
 ```md
-## 1. 45.60s (frame 1368) · The app (desktop → phone)
-- **Feedback:** make the cover bigger
-- **Narration there:** “seconds. Pick a cover, a font,”
-- **Scene:** s4 (assets/js/s4-app.js)
-- **Pointing at:** `.phone2 > … > .cvr > .sc` — near “Cocktail bars in Bangkok”
-- **Element box:** 1018,286 330×420 (in 1920×1080)
-- **Drawn on the frame** (1920×1080): arrow from 384,810 to 768,594 (pink) pointing at “Cocktail bars in Bangkok”
+## 1. 12.13s (frame 364) · The product
+- **Feedback:** tagline too small on mobile
+- **Narration there:** “Async updates your team actually reads.”
+- **Pointing at:** `#s4 > p.tagline` — “Async updates your team actually reads.”
+- **Source:** scenes/product.html:42
+- **Element box:** 98,645 490×116 (in 1920×1080)
+- **Styles now:** font-size 43px; color #5f5a52
 ```
 
-It also gets **the frame itself, with your drawing on it**, as an image over MCP.
+It also gets **the frame itself, with your pin or drawing on it**, as an image. Then it fixes the source, re-renders, checks the frame, and closes the note, and you watch that happen in the review.
 
 ## Quick start
 
 ```sh
-npx video-launcher path/to/video.mp4
+npx telestrator path/to/video.mp4
 ```
 
-A folder works too, and resolves to its newest render (`./renders`, `./out`, or the folder):
+A folder works too, and resolves to its newest render (`./renders`, `./out`, or the folder). The review opens in your browser.
+
+Then connect your agent, once:
 
 ```sh
-npx video-launcher .
+npx telestrator init
 ```
 
-The review opens in your browser. Write in the sidebar and the note lands at the playhead. Before you press **Add note**, you can attach one or more of these:
+It finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini CLI, Windsurf, OpenCode and more), adds telestrator to the ones you pick, and offers the Claude Code skill. Start a new agent session, then ask it to *"check the video feedback"*.
 
-- **Point (P):** click something in the frame. On a HyperFrames composition this names the exact element; on a plain video it records the spot.
+Something off? `npx telestrator doctor` checks Node, ffmpeg, which agents are connected, and what a video resolves to.
+
+## Reviewing
+
+Write in the sidebar and the note lands at the playhead. Before you press **Add note**, attach any of these:
+
+- **Point (P):** click something in the frame. On a HyperFrames composition this names the exact element, its source line and its current styles; on a plain video it records the spot.
 - **Draw (D):** pen, arrow, box or text, in six colours.
 - **Range:** drag across the filmstrip to cover a stretch of time.
 
-Then connect your agent once. This finds the agents you have installed (Claude Code, Codex, Cursor, VS Code, Gemini CLI, Windsurf, OpenCode and more) and adds video-launcher to the ones you pick:
+Notes show their status as your agent works: **acknowledged** when it picks one up, then **resolved** or **dismissed** with a line on why. It can also ask you a question under a note, and you answer in the same thread. Notes the agent leaves itself are marked **from agent**.
 
-```sh
-npx add-mcp "npx -y video-launcher mcp" --name video-launcher -g
-```
+## Working with your agent
 
-Or add it to one agent yourself:
+- **"Check the video feedback"**: the agent reads every open note with its frame, acknowledges it, fixes the source, re-renders, checks the frame, and resolves it.
+- **"Watch mode"**: the agent waits for your notes while you keep reviewing, and handles each batch as it arrives.
+- **"Critique the render"**: the agent steps through the video frame by frame and leaves its own notes for you to accept or dismiss.
+
+## Connecting an agent by hand
+
+`init` does this for you. To add it yourself:
 
 | Agent | Command |
 | --- | --- |
-| Claude Code | `claude mcp add --scope user video-launcher -- npx -y video-launcher mcp` |
-| Codex | `codex mcp add video-launcher -- npx -y video-launcher mcp` |
-| Gemini CLI | `gemini mcp add -s user video-launcher npx -- -y video-launcher mcp` |
-| VS Code | `code --add-mcp '{"name":"video-launcher","command":"npx","args":["-y","video-launcher","mcp"]}'` |
-| Cursor, Windsurf, others | add a stdio server: command `npx`, args `["-y", "video-launcher", "mcp"]` (e.g. in `~/.cursor/mcp.json`) |
+| Any agent | `npx add-mcp "npx -y telestrator mcp" --name telestrator -g` |
+| Claude Code | `claude mcp add --scope user telestrator -- npx -y telestrator mcp` |
+| Codex | `codex mcp add telestrator -- npx -y telestrator mcp` |
+| Gemini CLI | `gemini mcp add -s user telestrator npx -- -y telestrator mcp` |
+| VS Code | `code --add-mcp '{"name":"telestrator","command":"npx","args":["-y","telestrator","mcp"]}'` |
+| Cursor, Windsurf, others | a stdio server: command `npx`, args `["-y", "telestrator", "mcp"]` (e.g. in `~/.cursor/mcp.json`) |
 
-The review's **Connect agent** button shows the same, one tab per agent. Start a new agent session afterwards so it loads the tools.
+The review's **Connect agent** menu shows the same. Without MCP, **Copy for agent** gives you the notes as markdown to paste.
 
-After that, ask it to *"check the video feedback"*. There's also a **Copy for agent** button if you'd rather paste.
+## For agents (MCP)
+
+| Tool | What it does |
+| --- | --- |
+| `list_reviews` | Lists the reviews, with open counts |
+| `get_feedback` | Open notes (or `pending` / `resolved` / `dismissed` / `all`) as markdown with ids, and each annotated note's frame as an image |
+| `watch_feedback` | Waits until the reviewer adds notes nobody has picked up, then returns the batch |
+| `get_frame` | Any frame at `t` seconds, to check a spot or verify a re-render. Needs `ffmpeg` |
+| `acknowledge` | Marks a note as picked up |
+| `reply` | Asks the reviewer a question under a note |
+| `resolve` | Closes a note with a line on what changed |
+| `dismiss` | Closes a note without changing anything, with the reason |
+| `add_note` | Leaves the agent's own note (critique mode), with its frame |
+
+The MCP server reads and writes the same review files as the UI, so the UI doesn't need to be running; when it is, it shows the agent's replies and status changes within two seconds.
+
+It looks for reviews under the folder the agent starts it in (or `--root <dir>`). When there are none there, as when an IDE or desktop app starts it from your home folder, it uses the reviews you opened lately, listed in `~/.telestrator/recent.json`.
 
 ## What it knows about your video
 
 | You have | Pointing | Scenes on the timeline | What's being said |
 | --- | --- | --- | --- |
 | Any MP4 / MOV / WebM | the spot, in video pixels | one clip | from `<video>.srt` / `.vtt` if present |
-| A **HyperFrames** project | **the element** under your click, resolved on that exact frame | the root clips (`data-start` / `data-duration`) | captions, or the sidecar |
+| A **HyperFrames** project | **the element** under your click on that exact frame, with its source line and styles | the root clips (`data-start` / `data-duration`) | captions, or the sidecar |
 | **Remotion** (`out/video.mp4`) | the spot, in video pixels | one clip, or the sidecar | captions, or the sidecar |
 
 Notes always carry **seconds and frame numbers**. Pass `--fps` to match your composition.
 
-**How pointing works.** video-launcher serves the composition from the same origin and injects a small adapter. The adapter seeks every `window.__timelines` GSAP timeline to the time you paused on and applies clip visibility. The UI then hit-tests the DOM exactly where you clicked. It follows the HyperFrames contract, so it works without the HyperFrames runtime. If your composition drives itself some other way, give it a hook:
+**How pointing works.** telestrator serves the composition from the same origin and injects a small adapter. It seeks every `window.__timelines` GSAP timeline to the time you paused on and applies clip visibility, then the UI hit-tests the DOM exactly where you clicked. It follows the HyperFrames contract, so it works without the HyperFrames runtime. If your composition drives itself some other way, give it a hook:
 
 ```html
 <script>
-	window.__videoLauncher = {
+	window.__telestrator = {
 		seek(t) { /* put the DOM in its state at t seconds */ },
 		info() { return { width: 1920, height: 1080, fps: 30, scenes: [{ id: 'intro', name: 'Intro', start: 0 }] } } // optional
 	};
@@ -77,45 +108,32 @@ Notes always carry **seconds and frame numbers**. Pass `--fps` to match your com
 
 ### The sidecar (optional)
 
-This is a JSON file named `<video>.review.json`, or `video-launcher.json`, placed next to the video. Every key is optional:
+A JSON file named `<video>.review.json`, or `telestrator.json`, next to the video. Every key is optional:
 
 ```json
 {
 	"title": "Launch film v7",
 	"fps": 30,
-	"scenes": [{ "id": "s1", "name": "Everyone asks", "file": "src/scenes/asks.tsx", "start": 0 }],
-	"transcript": [{ "start": 0.5, "end": 3.4, "text": "You've been there." }],
-	"words": [["You've", 0.48, 0.76], ["been", 0.76, 0.88]]
+	"scenes": [{ "id": "s1", "name": "The problem", "file": "src/scenes/problem.tsx", "start": 0 }],
+	"transcript": [{ "start": 0.5, "end": 3.4, "text": "Your team spends Monday in status meetings." }],
+	"words": [["Your", 0.48, 0.66], ["team", 0.66, 0.88]]
 }
 ```
 
-`file` shows up in the feedback, so the agent knows which source file owns the scene. If your pipeline already knows its scene boundaries and voice-over timing, write this file at render time.
-
-## For agents (MCP)
-
-| Tool | What it does |
-| --- | --- |
-| `list_reviews` | Lists the reviews under the project, with open counts |
-| `get_feedback` | Returns open notes (or `resolved` / `dismissed` / `all`) as markdown with note ids. Each annotated note also comes with its frame as an image |
-| `get_frame` | Returns any frame at `t` seconds as an image, for checking a spot or verifying a re-render. Needs `ffmpeg` |
-| `reply` | Asks the reviewer a question on a note. It appears under the note in the review UI |
-| `resolve` | Closes a note with a line on what changed |
-| `dismiss` | Closes a note without changing anything, with the reason |
-
-The MCP server reads and writes the same review files the UI uses, so the UI doesn't need to be running. When the UI is open, it picks up the agent's replies and resolutions within two seconds. You can answer in the note's thread, or reopen the note.
-
-The server looks for reviews under the folder the agent starts it in (or `--root <dir>`). If there are none there, as when an IDE or desktop app starts it from your home folder, it uses the reviews you opened lately with `npx video-launcher`, listed in `~/.video-launcher/recent.json`.
+`file` shows up in the feedback, so the agent knows which source file owns the scene. If your pipeline knows its scene boundaries and voice-over timing, write this file at render time.
 
 ## Where notes live
 
-Each review is saved to `<video folder>/.video-launcher/<video file name>.json`. Everything stays local and nothing is uploaded. Commit the folder if you want the feedback in git, or add `.video-launcher` to `.gitignore`.
+Each review is saved to `<video folder>/.telestrator/<video file name>.json`. Everything stays on your machine. Commit the folder if you want the feedback in git, or add `.telestrator` to `.gitignore`.
 
 ## CLI
 
 ```
-npx video-launcher <video | folder> [--composition <html> | --no-composition] [--captions <srt|vtt>]
-                                    [--meta <json>] [--fps <n>] [--port <n>] [--no-open]
-npx video-launcher mcp [--root <dir>]
+npx telestrator <video | folder> [--composition <html> | --no-composition] [--captions <srt|vtt>]
+                                 [--meta <json>] [--fps <n>] [--port <n>] [--no-open]
+npx telestrator init [--yes]
+npx telestrator doctor [video | folder]
+npx telestrator mcp [--root <dir>]
 ```
 
 ## Keys
@@ -130,8 +148,11 @@ npx video-launcher mcp [--root <dir>]
 | `D` | draw (`⌘Z` undoes a mark) |
 | `⌘↵` | add the note |
 | `Esc` | leave a tool, or drop what's attached |
+| `H` | hide or show markers on the frame |
 | `M` | toggle sound |
 | `F` | fullscreen |
+
+The review follows your system's light or dark setting; the toolbar switch overrides it.
 
 ## Development
 
@@ -141,7 +162,7 @@ npm test
 node bin/cli.js path/to/video.mp4
 ```
 
-There are no build steps. The UI is `ui/index.html` plus `ui/app.js`, the composition adapter is `ui/adapter.js`, and the server, MCP server and formatting live in `src/`.
+There's no build step. The UI is `ui/index.html` and `ui/app.js`, the composition adapter is `ui/adapter.js`, the server, MCP server and formatting live in `src/`, and the website is `site/index.html`.
 
 ## License
 

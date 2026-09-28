@@ -1,4 +1,4 @@
-// `npx video-launcher init`: connect your agents (add-mcp finds the ones you have and asks which), then add the
+// `npx telestrator init`: connect your agents (add-mcp finds the ones you have and asks which), then add the
 // Claude Code skill. `--yes` does both without asking.
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync } from 'node:fs';
@@ -7,11 +7,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
 
-const SKILL = join(dirname(fileURLToPath(import.meta.url)), '..', 'skills', 'video-launcher');
+const SKILL = join(dirname(fileURLToPath(import.meta.url)), '..', 'skills', 'telestrator');
 
 export async function init({ yes = false } = {}) {
-	console.log('\n  Connecting video-launcher to your agents. add-mcp finds the ones you have and asks which to add it to.\n');
-	const r = spawnSync('npx', ['-y', 'add-mcp', 'npx -y video-launcher mcp', '--name', 'video-launcher', '-g', ...(yes ? ['-y'] : [])], { stdio: 'inherit', shell: process.platform === 'win32' });
+	console.log('\n  Connecting telestrator to your agents. add-mcp finds the ones you have and asks which to add it to.\n');
+	const r = spawnSync('npx', ['-y', 'add-mcp', 'npx -y telestrator mcp', '--name', 'telestrator', '-g', ...(yes ? ['-y'] : [])], { stdio: 'inherit', shell: process.platform === 'win32' });
 	if (r.status !== 0) console.log('\n  add-mcp didn\'t finish. Add it by hand instead: "Connect agent" in the review, or the README.');
 
 	const claude = join(homedir(), '.claude');
@@ -19,14 +19,14 @@ export async function init({ yes = false } = {}) {
 		let go = yes;
 		if (!yes && process.stdin.isTTY) {
 			const rl = createInterface({ input: process.stdin, output: process.stdout });
-			go = !/^n/i.test(await rl.question('\n  Add the Claude Code skill (/video-launcher) too? [Y/n] '));
+			go = !/^n/i.test(await rl.question('\n  Add the Claude Code skill (/telestrator) too? [Y/n] '));
 			rl.close();
 		}
 		if (go) {
-			const dest = join(claude, 'skills', 'video-launcher');
+			const dest = join(claude, 'skills', 'telestrator');
 			cpSync(SKILL, dest, { recursive: true });
 			console.log(`  ✓ Skill added: ${dest}`);
 		}
 	}
-	console.log('\n  Start a new agent session, then ask it to "check the video feedback".\n  Check your setup any time: npx video-launcher doctor\n');
+	console.log('\n  Start a new agent session, then ask it to "check the video feedback".\n  Check your setup any time: npx telestrator doctor\n');
 }

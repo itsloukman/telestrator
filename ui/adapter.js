@@ -1,12 +1,12 @@
-// Injected into the composition page (served same-origin by video-launcher). The review UI calls
-// window.__videoLauncher.seek(t) and then hit-tests the DOM, so pointing names the element that is on screen at t.
+// Injected into the composition page (served same-origin by telestrator). The review UI calls
+// window.__telestrator.seek(t) and then hit-tests the DOM, so pointing names the element that is on screen at t.
 //
 // A composition can bring its own adapter by defining, before this script runs:
-//   window.__videoLauncher = { seek(t) {...}, info() { return { width, height, fps, duration, scenes } } }
+//   window.__telestrator = { seek(t) {...}, info() { return { width, height, fps, duration, scenes } } }
 // Otherwise this one follows the HyperFrames contract: paused GSAP timelines in window.__timelines, and clips marked
 // with data-start / data-duration whose visibility is [start, start + duration).
 (() => {
-	const own = window.__videoLauncher || {};
+	const own = window.__telestrator || {};
 	const num = (v) => (v == null || v === '' || !isFinite(+v) ? null : +v);
 	const root = () => document.querySelector('[data-root="true"]') || document.querySelector('[data-composition-id]') || document.body;
 
@@ -76,7 +76,7 @@
 		return { width: num(r.getAttribute('data-width')), height: num(r.getAttribute('data-height')), fps: num(r.getAttribute('data-fps')), duration: num(r.getAttribute('data-duration')), scenes };
 	}
 
-	window.__videoLauncher = {
+	window.__telestrator = {
 		seek: own.seek ? (t) => { size(); own.seek(t); } : seek,
 		info: () => ({ ...info(), ...(own.info ? own.info() : {}) }),
 		root

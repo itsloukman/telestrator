@@ -3,9 +3,9 @@ import { spawn } from 'node:child_process';
 import { pretty } from '../src/store.js';
 import { loadProject } from '../src/project.js';
 
-const HELP = `video-launcher — point, draw and comment on any frame of a rendered video; your agent reads it over MCP.
+const HELP = `telestrator — point, draw and comment on any frame of a rendered video; your agent reads it over MCP.
 
-  npx video-launcher <video | project folder> [options]
+  npx telestrator <video | project folder> [options]
       Opens the review UI for a video. A folder resolves to its newest render (./renders, ./out, or the folder).
       --composition <file>   HyperFrames-style HTML to point at elements in (default: auto-detected index.html)
       --no-composition       Review the video only
@@ -15,18 +15,18 @@ const HELP = `video-launcher — point, draw and comment on any frame of a rende
       --port <n>             Default 4180 (the next free port is used if taken)
       --no-open              Don't open the browser
 
-  npx video-launcher init [--yes]
+  npx telestrator init [--yes]
       Connect your agents (Claude Code, Codex, Cursor, VS Code, Gemini…) and add the Claude Code skill.
 
-  npx video-launcher doctor [video | folder]
+  npx telestrator doctor [video | folder]
       Check the setup: Node, ffmpeg, which agents are connected, and what a video resolves to.
 
-  npx video-launcher mcp [--root <dir>]
+  npx telestrator mcp [--root <dir>]
       MCP server over stdio for agents: list_reviews, get_feedback, watch_feedback, get_frame, acknowledge, reply,
       resolve, dismiss, add_note.
-      Any agent:    npx add-mcp "npx -y video-launcher mcp" --name video-launcher -g
-      Claude Code:  claude mcp add --scope user video-launcher -- npx -y video-launcher mcp
-      Codex:        codex mcp add video-launcher -- npx -y video-launcher mcp
+      Any agent:    npx add-mcp "npx -y telestrator mcp" --name telestrator -g
+      Claude Code:  claude mcp add --scope user telestrator -- npx -y telestrator mcp
+      Codex:        codex mcp add telestrator -- npx -y telestrator mcp
 `;
 
 const argv = process.argv.slice(2);
@@ -56,7 +56,7 @@ if (pos[0] === 'mcp') {
 	try {
 		project = loadProject(pos[0] || '.', { composition: flags.composition, captions: flags.captions, meta: flags.meta, fps: flags.fps ? +flags.fps : null });
 	} catch (e) {
-		console.error('video-launcher: ' + e.message + '\n\n' + HELP);
+		console.error('telestrator: ' + e.message + '\n\n' + HELP);
 		process.exit(1);
 	}
 	const { startServer } = await import('../src/server.js');
@@ -65,12 +65,12 @@ if (pos[0] === 'mcp') {
 		try { started = await startServer(project, { port: port + k }); } catch (e) { if (e.code !== 'EADDRINUSE' || flags.port) throw e; }
 	}
 	const r = pretty;
-	console.log(`\n  video-launcher  ${started.url}\n`);
+	console.log(`\n  telestrator  ${started.url}\n`);
 	console.log(`  video        ${r(project.video)}`);
 	console.log(`  composition  ${project.composition ? r(project.composition) + '  (pointing at elements: on)' : 'none  (pointing gives frame coordinates)'}`);
 	if (project.captions) console.log(`  captions     ${r(project.captions)}`);
 	console.log(`  notes        ${r(started.file)}`);
-	console.log(`\n  Agents: npx video-launcher init   (or "Connect agent" in the review)\n`);
+	console.log(`\n  Agents: npx telestrator init   (or "Connect agent" in the review)\n`);
 	if (flags.open !== false) {
 		const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
 		const args = process.platform === 'win32' ? ['/c', 'start', '', started.url] : [started.url];

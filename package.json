@@ -1,10 +1,20 @@
 {
-  "name": "video-launcher",
+  "name": "telestrator",
   "version": "0.1.0",
-  "description": "Frame-accurate visual feedback on rendered videos, for AI agents. Point, draw and comment on any frame; your agent reads it over MCP. Works with HyperFrames, Remotion, or any MP4.",
+  "description": "Point at the frame, your agent fixes the video. Frame-accurate feedback on rendered videos for AI agents: point, draw and comment on any frame, and your agent reads it over MCP. Works with HyperFrames, Remotion, or any MP4.",
+  "homepage": "https://telestrator.tv",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsloukman/telestrator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/itsloukman/telestrator/issues"
+  },
+  "author": "Loukman Nacik",
+  "license": "MIT",
   "type": "module",
   "bin": {
-    "video-launcher": "bin/cli.js"
+    "telestrator": "bin/cli.js"
   },
   "files": [
     "bin",
@@ -22,13 +32,17 @@
     "review",
     "feedback",
     "annotation",
+    "video-review",
+    "telestrator",
     "mcp",
+    "model-context-protocol",
     "ai-agents",
+    "claude-code",
+    "codex",
+    "cursor",
     "hyperframes",
-    "remotion",
-    "claude"
+    "remotion"
   ],
-  "license": "MIT",
   "scripts": {
     "test": "node --test test/*.test.js"
   },

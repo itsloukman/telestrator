@@ -3,7 +3,20 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>video-launcher · point at the frame, your agent fixes the video</title>
+<title>telestrator · point at the frame, your agent fixes the video</title>
+<link rel="canonical" href="https://telestrator.tv/" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://telestrator.tv/" />
+<meta property="og:site_name" content="telestrator" />
+<meta property="og:title" content="telestrator · point at the frame, your agent fixes the video" />
+<meta property="og:description" content="Frame-accurate feedback on rendered videos, for AI agents. Pause, point at what's wrong, and your agent gets the frame, the element and the line of code that draws it." />
+<meta property="og:image" content="https://telestrator.tv/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="telestrator · point at the frame, your agent fixes the video" />
+<meta name="twitter:description" content="Frame-accurate feedback on rendered videos, for AI agents. Works with HyperFrames, Remotion or any MP4." />
+<meta name="twitter:image" content="https://telestrator.tv/og.png" />
 <meta name="description" content="Frame-accurate feedback on rendered videos, for AI agents. Pause, point at what's wrong, and your agent gets the time, the element, its source line and the frame itself. Works with HyperFrames, Remotion or any MP4." />
 <meta name="color-scheme" content="light dark" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23ef6a4c'/%3E%3Cpath d='M8 6.5v11l4-2.6 4 2.6v-11z' fill='white'/%3E%3C/svg%3E" />
@@ -309,20 +322,28 @@
 		.vl-msg { opacity: 1; max-height: none; padding: 5px 7px; margin-top: 0; border-width: 1px; }
 	}
 	.demo-cap { font-size: 13px; color: var(--dim); margin-bottom: 26px; }
+	/* hand it to your agent: one prompt with everything it needs */
+	.cta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: -6px 0 34px; }
+	.cta button { height: 34px; padding: 0 14px; border-radius: 17px; border: 0; background: var(--ink); color: var(--bg); font: 500 13.5px var(--sans); cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+	.cta button:hover { opacity: 0.88; }
+	.cta button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+	.cta span { font-size: 13px; color: var(--dim); }
 </style>
 <script>document.documentElement.dataset.theme = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');</script>
 </head>
 <body>
 
-<nav><a href="#">video-launcher</a><a href="#start">Start</a><a href="#agents">Agents</a><a href="#questions">Questions</a><a href="https://github.com/itsloukman/video-launcher">GitHub</a></nav>
+<nav><a href="#">telestrator</a><a href="#start">Start</a><a href="#agents">Agents</a><a href="#questions">Questions</a><a href="https://www.npmjs.com/package/telestrator">npm</a><a href="https://github.com/itsloukman/telestrator">GitHub</a></nav>
 
 <section>
 	<h1>Point at the frame. Your agent fixes the video.</h1>
 	<p class="lede">You made a video with an agent. Now tell it what to change without describing pixels: pause, point at what's wrong, write one line. Your agent gets the exact frame, the element, the line of code that draws it, and the picture itself.</p>
 
+	<div class="cta"><button data-copy-prompt><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Copy the prompt for your agent</button><span>Paste it into Claude Code, Codex or Cursor. It sets everything up.</span></div>
+
 	<div class="demo-wrap" aria-label="The review screen: you point at the title and write a note; the agent picks it up, makes the title bigger and resolves the note">
 		<div class="vl" id="vl" aria-hidden="true">
-			<div class="vl-tb"><span class="logo"><svg viewBox="0 0 24 24"><path d="M5 4.5v15l6.5-4.2L18 19.5v-15z"/></svg></span><b>video-launcher</b><span class="sep"></span><span class="ttl">launch-v7.mp4</span><span class="sp"></span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>Connect agent</span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>Sound on</span></div>
+			<div class="vl-tb"><span class="logo"><svg viewBox="0 0 24 24"><path d="M5 4.5v15l6.5-4.2L18 19.5v-15z"/></svg></span><b>telestrator</b><span class="sep"></span><span class="ttl">launch-v7.mp4</span><span class="sp"></span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>Connect agent</span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>Sound on</span></div>
 			<div class="vl-work">
 				<div class="vl-centre">
 					<div class="vl-viewer">
@@ -398,9 +419,9 @@
 
 <section id="start">
 	<h2>Start with one command</h2>
-	<div class="cmd"><pre><span class="d">$</span> <span class="k">npx</span> video-launcher <span class="s">path/to/video.mp4</span></pre><button class="copy" data-copy="npx video-launcher path/to/video.mp4" aria-label="Copy"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></button></div>
+	<div class="cmd"><pre><span class="d">$</span> <span class="k">npx</span> telestrator <span class="s">path/to/video.mp4</span></pre><button class="copy" data-copy="npx telestrator path/to/video.mp4" aria-label="Copy"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></button></div>
 	<p class="note">A project folder works too: it opens the newest render. The review opens in your browser, and notes stay on your machine.</p>
-	<div class="cmd" style="margin-top:18px"><pre><span class="d">$</span> <span class="k">npx</span> video-launcher <span class="f">init</span></pre><button class="copy" data-copy="npx video-launcher init" aria-label="Copy"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></button></div>
+	<div class="cmd" style="margin-top:18px"><pre><span class="d">$</span> <span class="k">npx</span> telestrator <span class="f">init</span></pre><button class="copy" data-copy="npx telestrator init" aria-label="Copy"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></button></div>
 	<p class="note">Once, to connect your agent: Claude Code, Codex, Cursor, VS Code, Gemini CLI, Windsurf and more. Then ask it to “check the video feedback”.</p>
 </section>
 
@@ -455,19 +476,36 @@
 		<dt>Is it free?</dt>
 		<dd>Yes. It's MIT licensed.</dd>
 		<dt>Does my video leave my machine?</dt>
-		<dd>No. It runs locally, and notes are JSON files next to your video in <code>.video-launcher/</code>. Commit them if you want the feedback in git.</dd>
+		<dd>No. It runs locally, and notes are JSON files next to your video in <code>.telestrator/</code>. Commit them if you want the feedback in git.</dd>
 		<dt>Which agents work?</dt>
 		<dd>Any agent that supports MCP. <code>init</code> sets up the ones you have. Without MCP, use “Copy for agent” and paste.</dd>
 		<dt>Do I need HyperFrames?</dt>
 		<dd>No. Any video works. With a HyperFrames composition, pointing also knows which element you mean and where it's written.</dd>
 		<dt>Something isn't working?</dt>
-		<dd>Run <code>npx video-launcher doctor</code>. It checks Node, ffmpeg, your agents, and what your video resolves to.</dd>
+		<dd>Run <code>npx telestrator doctor</code>. It checks Node, ffmpeg, your agents, and what your video resolves to.</dd>
 		<dt>Where's the code?</dt>
-		<dd>On <a href="https://github.com/itsloukman/video-launcher">GitHub</a>. Issues and pull requests are welcome.</dd>
+		<dd>On <a href="https://github.com/itsloukman/telestrator">GitHub</a>. Issues and pull requests are welcome.</dd>
 	</dl>
 </section>
 
-<div class="foot">see video-launcher on <a href="https://github.com/itsloukman/video-launcher">github ↗</a></div>
+<!-- what "Copy the prompt for your agent" copies; not shown on the page -->
+<pre id="agentPrompt" hidden>Set up telestrator so I can review my rendered videos and you can act on my feedback.
+
+1. Connect yourself to the telestrator MCP server. Run `npx telestrator init`, or add an MCP server named "telestrator" with command `npx` and args `["-y", "telestrator", "mcp"]`. If I need to restart this session to load the tools, tell me.
+2. Find my latest render (check ./renders, ./out and the project folder; ask me if there are several) and open the review for me: `npx telestrator &lt;video or project folder&gt;`. For a HyperFrames project, make sure the composition is found; if it isn't, pass `--composition &lt;path to index.html&gt;`.
+3. Run `npx telestrator doctor` and fix anything it flags.
+
+Then, whenever I say "check the video feedback":
+- Call get_feedback and read every open note, including its frame image.
+- acknowledge each note as you pick it up.
+- Fix the source. Each note gives the time and frame, the scene and its file, what's being said, and for pointed elements the source file:line and current styles.
+- Re-render, check your fix with get_frame at the note's time, then resolve the note with one line on what you changed.
+- If a note is unclear, reply with a question instead of guessing. If you won't change something, dismiss it with the reason.
+
+If I say "watch mode", call watch_feedback in a loop and handle my notes as they arrive.
+If I ask you to critique the render, step through it with get_frame and leave your own notes with add_note.</pre>
+
+<div class="foot">see telestrator on <a href="https://github.com/itsloukman/telestrator">github ↗</a></div>
 <button class="theme" aria-label="Toggle dark mode"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
 
 <script>
@@ -486,8 +524,20 @@
 		for (const [name, v] of Object.entries(stops)) vl.style.setProperty('--' + name, v.toFixed(1) + 'px');
 	}
 	document.fonts.ready.then(place);
-	document.querySelectorAll('.copy').forEach((b) => (b.onclick = async () => {
-		await navigator.clipboard.writeText(b.dataset.copy);
+	// copy, falling back to a hidden textarea where the clipboard API is blocked
+	async function copyText(t) {
+		try { await navigator.clipboard.writeText(t); }
+		catch { const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+	}
+	// the agent prompt: the same text wherever it's copied from
+	document.querySelectorAll('[data-copy-prompt]').forEach((b) => (b.onclick = async () => {
+		await copyText(document.getElementById('agentPrompt').textContent);
+		const label = b.lastChild;
+		if (label.nodeType === 3) { const was = label.textContent; label.textContent = 'Copied. Paste it into your agent'; setTimeout(() => (label.textContent = was), 1800); }
+		else { b.style.color = 'var(--green)'; setTimeout(() => (b.style.color = ''), 1200); }
+	}));
+	document.querySelectorAll('.copy:not([data-copy-prompt])').forEach((b) => (b.onclick = async () => {
+		await copyText(b.dataset.copy);
 		b.style.color = 'var(--green)';
 		setTimeout(() => (b.style.color = ''), 1200);
 	}));

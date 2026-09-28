@@ -1,11 +1,11 @@
-// One review per video, stored next to it: <video dir>/.video-launcher/<video file name>.json
+// One review per video, stored next to it: <video dir>/.telestrator/<video file name>.json
 // The browser UI writes notes through the local server; the MCP server reads and updates the same file,
 // so an agent can pick feedback up (and resolve it) without the UI running.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, renameSync } from 'node:fs';
 import { dirname, basename, join, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 
-export const DIR = '.video-launcher';
+export const DIR = '.telestrator';
 
 export function reviewPath(video) {
 	return join(dirname(video), DIR, basename(video) + '.json');
@@ -70,7 +70,7 @@ export function findReviews(root, depth = 6) {
 		.sort((a, b) => b.mtime - a.mtime);
 }
 
-// reviews opened lately, across projects (~/.video-launcher/recent.json): lets an agent that wasn't started in the
+// reviews opened lately, across projects (~/.telestrator/recent.json): lets an agent that wasn't started in the
 // project folder (IDEs, desktop apps, a global MCP config) still find them
 const recentFile = () => join(homedir(), DIR, 'recent.json');
 const readRecent = () => {

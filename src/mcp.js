@@ -21,10 +21,10 @@ function grabFrame(video, t, width = 960, at = null) {
 
 export async function startMcp({ root = process.cwd() } = {}) {
 	root = resolve(root);
-	const server = new McpServer({ name: 'video-launcher', version: '0.1.0' });
+	const server = new McpServer({ name: 'telestrator', version: '0.1.0' });
 
 	// the reviews under the project; when the agent started us elsewhere (an IDE, a desktop app: often the home folder
-	// or /, which we don't crawl), the ones opened lately with `npx video-launcher`
+	// or /, which we don't crawl), the ones opened lately with `npx telestrator`
 	const wide = root === resolve(homedir()) || root === parse(root).root;
 	const reviews = () => {
 		const found = wide ? [] : findReviews(root);
@@ -39,7 +39,7 @@ export async function startMcp({ root = process.cwd() } = {}) {
 			if (existsSync(p) && readReview(reviewPath(p))) return { file: reviewPath(p), review: readReview(reviewPath(p)) };
 		}
 		const all = reviews();
-		if (!all.length) throw new Error(`No reviews under ${root}, and none opened lately. Start one with: npx video-launcher <video>`);
+		if (!all.length) throw new Error(`No reviews under ${root}, and none opened lately. Start one with: npx telestrator <video>`);
 		if (!ref) return all[0];
 		const q = ref.toLowerCase();
 		const hit = all.find((x) => (x.review.title || '').toLowerCase().includes(q) || x.file.toLowerCase().includes(q));
@@ -59,7 +59,7 @@ export async function startMcp({ root = process.cwd() } = {}) {
 		inputSchema: {}
 	}, async () => {
 		const all = reviews();
-		if (!all.length) return { content: [text(`No reviews under ${root}, and none opened lately. The user starts one with: npx video-launcher <video>`)] };
+		if (!all.length) return { content: [text(`No reviews under ${root}, and none opened lately. The user starts one with: npx telestrator <video>`)] };
 		return { content: [text(all.map(({ file, review: r }) => {
 			const open = (r.notes || []).filter(isOpen).length;
 			return `- ${r.title} — ${open} open / ${(r.notes || []).length} total · video: ${rel(root, r.video)} · review: ${rel(root, file)}`;

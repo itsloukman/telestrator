@@ -2,7 +2,7 @@
 //   video    the file to play (a folder resolves to its newest render: ./renders, ./out, or the folder itself)
 //   composition  a HyperFrames-style HTML file whose DOM can be seeked, for pointing at elements (auto-detected:
 //                the nearest index.html with a data-composition-id, walking up from the video)
-//   meta     optional sidecar JSON: <video>.review.json or video-launcher.json — { title, fps, scenes, transcript }
+//   meta     optional sidecar JSON: <video>.review.json or telestrator.json — { title, fps, scenes, transcript }
 //   captions optional .srt/.vtt next to the video (same name), for "what is being said here"
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
@@ -63,7 +63,7 @@ export function loadProject(input, opts = {}) {
 	if (composition && statSync(composition).isDirectory()) composition = join(composition, 'index.html');
 	if (composition && !existsSync(composition)) throw new Error(`Composition not found: ${composition}`);
 
-	const metaFile = [opts.meta && resolve(opts.meta), video + '.review.json', join(dir, 'video-launcher.json')].find((f) => f && existsSync(f));
+	const metaFile = [opts.meta && resolve(opts.meta), video + '.review.json', join(dir, 'telestrator.json')].find((f) => f && existsSync(f));
 	const meta = metaFile ? JSON.parse(readFileSync(metaFile, 'utf8')) : {};
 
 	const stem = video.slice(0, -extname(video).length);

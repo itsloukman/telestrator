@@ -1,18 +1,18 @@
 ---
-name: video-launcher
+name: telestrator
 description: Review and fix a rendered video (HyperFrames, Remotion or any MP4) from frame-accurate feedback. Use when the user wants to review a video, asks to "check the video feedback", "address my notes on the video", "watch for feedback", or "critique the render", or when you've just rendered a video and want the user's notes on it.
 ---
 
-# video-launcher
+# telestrator
 
-The user leaves notes on exact frames of a rendered video: pointing at an element, drawing on the frame, or marking a time range. You read them over the `video-launcher` MCP server, fix the source, re-render, and close each note.
+The user leaves notes on exact frames of a rendered video: pointing at an element, drawing on the frame, or marking a time range. You read them over the `telestrator` MCP server, fix the source, re-render, and close each note.
 
 ## If the tools aren't there
 
-The MCP tools (`get_feedback`, `watch_feedback`, …) come from the `video-launcher` server. If you don't have them, ask the user to run this once, then start a new session:
+The MCP tools (`get_feedback`, `watch_feedback`, …) come from the `telestrator` server. If you don't have them, ask the user to run this once, then start a new session:
 
 ```sh
-npx video-launcher init
+npx telestrator init
 ```
 
 ## Open a review for the user
@@ -20,7 +20,7 @@ npx video-launcher init
 After a render, open it so they can leave notes:
 
 ```sh
-npx video-launcher path/to/video.mp4   # or a project folder: the newest render in ./renders, ./out, or the folder
+npx telestrator path/to/video.mp4   # or a project folder: the newest render in ./renders, ./out, or the folder
 ```
 
 Pass `--composition <index.html>` if a HyperFrames composition isn't found automatically; pointing then names real elements.

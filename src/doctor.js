@@ -1,4 +1,4 @@
-// `npx video-launcher doctor [video | folder]`: checks what the tool needs, which agents can read the notes, and what a
+// `npx telestrator doctor [video | folder]`: checks what the tool needs, which agents can read the notes, and what a
 // video resolves to. It only reads; nothing is changed.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -22,14 +22,14 @@ export const AGENTS = [
 	{ name: 'OpenCode', bin: 'opencode', files: [join(home, '.config/opencode/opencode.json'), join(home, '.config/opencode/opencode.jsonc'), 'opencode.json', 'opencode.jsonc'] }
 ];
 
-// the config file that has a video-launcher server in it, if any (~/.claude.json is read properly: it also lists projects)
+// the config file that has a telestrator server in it, if any (~/.claude.json is read properly: it also lists projects)
 export function connectedIn(agent, cwd = process.cwd()) {
 	return agent.files.map((f) => (isAbsolute(f) ? f : join(cwd, f))).find((f) => {
 		try {
 			if (!existsSync(f)) return false;
 			const src = readFileSync(f, 'utf8');
-			if (f === join(home, '.claude.json')) { const j = JSON.parse(src); return !!((j.mcpServers || {})['video-launcher'] || ((j.projects || {})[cwd]?.mcpServers || {})['video-launcher']); }
-			return /["'[.]video-launcher["'\]]/.test(src);
+			if (f === join(home, '.claude.json')) { const j = JSON.parse(src); return !!((j.mcpServers || {})['telestrator'] || ((j.projects || {})[cwd]?.mcpServers || {})['telestrator']); }
+			return /["'[.]telestrator["'\]]/.test(src);
 		} catch { return false; }
 	});
 }
@@ -37,7 +37,7 @@ export function connectedIn(agent, cwd = process.cwd()) {
 export function doctor(target, { cwd = process.cwd(), log = console.log } = {}) {
 	const ok = (m) => log('  ✓ ' + m), bad = (m) => log('  ✗ ' + m), meh = (m) => log('  – ' + m);
 	let problems = 0;
-	log('\n  video-launcher doctor\n');
+	log('\n  telestrator doctor\n');
 
 	const major = +process.versions.node.split('.')[0];
 	if (major >= 18) ok(`Node ${process.versions.node}`); else { bad(`Node ${process.versions.node}: needs 18 or newer`); problems++; }
@@ -51,9 +51,9 @@ export function doctor(target, { cwd = process.cwd(), log = console.log } = {}) 
 		if (file) { ok(`${a.name}: connected (${pretty(file)})`); connected++; }
 		else if (installed) meh(`${a.name}: installed, not connected`);
 	}
-	if (!connected) { bad('No agent is connected. Run: npx video-launcher init'); problems++; }
-	const skill = join(home, '.claude/skills/video-launcher/SKILL.md');
-	if (existsSync(skill)) ok('Claude Code skill installed (/video-launcher)'); else meh('Claude Code skill not installed (npx video-launcher init adds it)');
+	if (!connected) { bad('No agent is connected. Run: npx telestrator init'); problems++; }
+	const skill = join(home, '.claude/skills/telestrator/SKILL.md');
+	if (existsSync(skill)) ok('Claude Code skill installed (/telestrator)'); else meh('Claude Code skill not installed (npx telestrator init adds it)');
 
 	log('\n  Reviews');
 	const here = findReviews(cwd), recent = recentReviews();

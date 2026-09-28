@@ -1,4 +1,4 @@
-// video-launcher review UI. Plain script, no build step.
+// telestrator review UI. Plain script, no build step.
 (async () => {
 	const $ = (s) => document.querySelector(s);
 	const v = $('#v'), stage = $('#stage'), comp = $('#comp'), overlay = $('#overlay');
@@ -40,7 +40,7 @@
 	const api = (path, method = 'GET', body) => fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined }).then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(new Error(e.error)))));
 
 	// ---- chrome ------------------------------------------------------------------------------------------------------
-	document.title = P.title + ' · video-launcher';
+	document.title = P.title + ' · telestrator';
 	$('#title').textContent = P.title;
 	const stat = () => ($('#stat').textContent = `${P.videoFile} · ${DUR.toFixed(1)} s · ${W}×${H} · ${FPS} fps${SCENES ? ` · ${SCENES.length} scene${SCENES.length > 1 ? 's' : ''}` : ''}`);
 	stat();
@@ -53,15 +53,15 @@
 	$('#mcpBtn').onclick = (e) => { e.stopPropagation(); $('#mcpPop').classList.toggle('on'); };
 	document.addEventListener('click', (e) => { if (!e.target.closest('#mcpPop')) $('#mcpPop').classList.remove('on'); });
 	// how to add the MCP server, per agent; "Any agent" lets add-mcp find the installed ones and write each one's config
-	const MCP_JSON = JSON.stringify({ mcpServers: { 'video-launcher': { command: 'npx', args: ['-y', 'video-launcher', 'mcp'] } } }, null, 2);
+	const MCP_JSON = JSON.stringify({ mcpServers: { 'telestrator': { command: 'npx', args: ['-y', 'telestrator', 'mcp'] } } }, null, 2);
 	const AGENTS = [
-		{ id: 'any', name: 'Any agent', cmd: 'npx add-mcp "npx -y video-launcher mcp" --name video-launcher -g', hint: 'Finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini, Windsurf, OpenCode…) and adds it to each one you pick.' },
-		{ id: 'claude', name: 'Claude Code', cmd: 'claude mcp add --scope user video-launcher -- npx -y video-launcher mcp', hint: 'Then start a new Claude Code session.' },
-		{ id: 'codex', name: 'Codex', cmd: 'codex mcp add video-launcher -- npx -y video-launcher mcp', hint: 'Then start a new Codex session.' },
+		{ id: 'any', name: 'Any agent', cmd: 'npx add-mcp "npx -y telestrator mcp" --name telestrator -g', hint: 'Finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini, Windsurf, OpenCode…) and adds it to each one you pick.' },
+		{ id: 'claude', name: 'Claude Code', cmd: 'claude mcp add --scope user telestrator -- npx -y telestrator mcp', hint: 'Then start a new Claude Code session.' },
+		{ id: 'codex', name: 'Codex', cmd: 'codex mcp add telestrator -- npx -y telestrator mcp', hint: 'Then start a new Codex session.' },
 		{ id: 'cursor', name: 'Cursor', cmd: MCP_JSON, json: true, hint: 'Paste into ~/.cursor/mcp.json (merge with any servers already there).' },
-		{ id: 'vscode', name: 'VS Code', cmd: `code --add-mcp '{"name":"video-launcher","command":"npx","args":["-y","video-launcher","mcp"]}'`, hint: 'Adds it to your VS Code profile, for Copilot agent mode.' },
-		{ id: 'gemini', name: 'Gemini CLI', cmd: 'gemini mcp add -s user video-launcher npx -- -y video-launcher mcp', hint: 'Then start a new Gemini session.' },
-		{ id: 'other', name: 'Other', cmd: MCP_JSON, json: true, hint: 'Any MCP client: a stdio server, command npx, args -y video-launcher mcp.' }
+		{ id: 'vscode', name: 'VS Code', cmd: `code --add-mcp '{"name":"telestrator","command":"npx","args":["-y","telestrator","mcp"]}'`, hint: 'Adds it to your VS Code profile, for Copilot agent mode.' },
+		{ id: 'gemini', name: 'Gemini CLI', cmd: 'gemini mcp add -s user telestrator npx -- -y telestrator mcp', hint: 'Then start a new Gemini session.' },
+		{ id: 'other', name: 'Other', cmd: MCP_JSON, json: true, hint: 'Any MCP client: a stdio server, command npx, args -y telestrator mcp.' }
 	];
 	let agent = AGENTS.find((a) => a.id === localStorage.getItem('vl:agent')) || AGENTS[0];
 	const logo = (id) => {
@@ -112,7 +112,7 @@
 	if (P.composition) {
 		comp.src = P.composition;
 		comp.addEventListener('load', () => {
-			vl = comp.contentWindow && comp.contentWindow.__videoLauncher;
+			vl = comp.contentWindow && comp.contentWindow.__telestrator;
 			if (!vl) { $('#compState').textContent = 'composition loaded, but no adapter — video only'; return; }
 			let info = {};
 			try { info = vl.info() || {}; } catch {}
@@ -129,7 +129,7 @@
 	function seekComp(t) {
 		if (!vl) return;
 		compT = t;
-		try { vl.seek(Math.min(t, DUR - 0.001)); } catch (e) { console.warn('[video-launcher] seek failed', e); }
+		try { vl.seek(Math.min(t, DUR - 0.001)); } catch (e) { console.warn('[telestrator] seek failed', e); }
 	}
 	const compRoot = () => { try { return vl.root(); } catch { return null; } };
 	// A readable path: ids, classes and meaningful data attributes; anonymous wrappers collapse into "…".
