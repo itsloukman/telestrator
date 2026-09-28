@@ -3,23 +3,23 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>telestrator · point at the frame, your agent fixes the video</title>
+<title>telestrator · iterate on videos with your agent, frame by frame</title>
 <link rel="canonical" href="https://telestrator.tv/" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://telestrator.tv/" />
 <meta property="og:site_name" content="telestrator" />
-<meta property="og:title" content="telestrator · point at the frame, your agent fixes the video" />
+<meta property="og:title" content="telestrator · iterate on videos with your agent, frame by frame" />
 <meta property="og:description" content="Frame-accurate feedback on rendered videos, for AI agents. Pause, point at what's wrong, and your agent gets the frame, the element and the line of code that draws it." />
 <meta property="og:image" content="https://telestrator.tv/og.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="telestrator · point at the frame, your agent fixes the video" />
+<meta name="twitter:title" content="telestrator · iterate on videos with your agent, frame by frame" />
 <meta name="twitter:description" content="Frame-accurate feedback on rendered videos, for AI agents. Works with HyperFrames, Remotion or any MP4." />
 <meta name="twitter:image" content="https://telestrator.tv/og.png" />
 <meta name="description" content="Frame-accurate feedback on rendered videos, for AI agents. Pause, point at what's wrong, and your agent gets the time, the element, its source line and the frame itself. Works with HyperFrames, Remotion or any MP4." />
 <meta name="color-scheme" content="light dark" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23ef6a4c'/%3E%3Cpath d='M8 6.5v11l4-2.6 4 2.6v-11z' fill='white'/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23111110'/%3E%3Cg transform='translate(4.2 4.2) scale(.65)'%3E%3Cpath d='M7.5 4.8v11.4a1 1 0 0 0 1.5.9l9.3-5.7a1 1 0 0 0 0-1.7L9 4a1 1 0 0 0-1.5.8z' fill='%23f4f4f0'/%3E%3Cpath d='M4.2 20.6c5.4-1.1 10.4-1.6 15.6-1.9' fill='none' stroke='%23ef6a4c' stroke-width='2.6' stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -32,7 +32,7 @@
 	}
 	:root[data-theme='dark'] {
 		--bg: #1b1b1b; --ink: #ededeb; --muted: #9a9993; --dim: #6c6b66; --line: #262624;
-		--well: #1c1c1b; --card: #181817; --frame: #0b0b0a; --frame-2: #1f1f1d;
+		--well: #262625; --card: #181817; --frame: #0b0b0a; --frame-2: #1f1f1d;
 		--blue: #7fb0f5; --green: #7cc896; --pink: #ef7fa6;
 	}
 	* { box-sizing: border-box; margin: 0; padding: 0; }
@@ -45,7 +45,9 @@
 
 	nav { display: flex; gap: 14px; margin-bottom: 56px; font-size: 15px; }
 	nav a { color: var(--muted); }
-	nav a:first-child { color: var(--ink); font-weight: 500; }
+	nav a:first-child { color: var(--ink); font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
+	nav .mark { width: 20px; height: 20px; border-radius: 5px; background: var(--ink); display: grid; place-items: center; }
+	nav .mark svg { width: 12px; height: 12px; fill: var(--bg); }
 	nav a:hover { color: var(--ink); text-decoration: none; }
 
 	section { margin-bottom: 64px; }
@@ -81,7 +83,14 @@
 	.theme { position: fixed; bottom: 12px; right: 16px; width: 30px; height: 30px; border: 0; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; border-radius: 6px; }
 	.theme:hover { color: var(--ink); background: var(--well); }
 	.theme svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-	@media (max-width: 720px) { .foot { position: static; margin-top: 40px; } body { padding-top: 56px; } }
+	@media (max-width: 720px) { .foot { position: static; margin-top: 40px; } body { padding-top: 56px; } .theme { position: absolute; top: 14px; right: 12px; bottom: auto; } }
+	/* phones: the brand on its own line with the links under it, the demo edge to edge, no sideways scrolling */
+	@media (max-width: 560px) {
+		nav { flex-wrap: wrap; gap: 6px 16px; margin-bottom: 40px; }
+		nav a:first-child { flex-basis: 100%; margin-bottom: 4px; }
+		pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+		.demo-wrap { width: 100vw !important; border-radius: 0; box-shadow: 0 0 0 1px var(--line) !important; }
+	}
 
 	/* ---- the demo: our review screen, same colours and parts as the app, playing the loop on its own ------------------------
 	   Drawn at the app's own size (1000×540) and scaled to fit. Always dark, like the app. */
@@ -333,17 +342,17 @@
 </head>
 <body>
 
-<nav><a href="#">telestrator</a><a href="#start">Start</a><a href="#agents">Agents</a><a href="#questions">Questions</a><a href="https://www.npmjs.com/package/telestrator">npm</a><a href="https://github.com/itsloukman/telestrator">GitHub</a></nav>
+<nav><a href="#"><span class="mark"><svg viewBox="0 0 24 24"><path d="M7.5 4.8v11.4a1 1 0 0 0 1.5.9l9.3-5.7a1 1 0 0 0 0-1.7L9 4a1 1 0 0 0-1.5.8z"/><path d="M4.2 20.6c5.4-1.1 10.4-1.6 15.6-1.9" fill="none" stroke="#ef6a4c" stroke-width="2.3" stroke-linecap="round"/></svg></span>telestrator</a><a href="#start">Start</a><a href="#agents">Agents</a><a href="#questions">Questions</a><a href="https://www.npmjs.com/package/telestrator">npm</a><a href="https://github.com/itsloukman/telestrator">GitHub</a></nav>
 
 <section>
-	<h1>Point at the frame. Your agent fixes the video.</h1>
-	<p class="lede">You made a video with an agent. Now tell it what to change without describing pixels: pause, point at what's wrong, write one line. Your agent gets the exact frame, the element, the line of code that draws it, and the picture itself.</p>
+	<h1>Iterate on videos with your agent, frame by frame.</h1>
+	<p class="lede">telestrator turns your feedback on a video into notes your AI agent can act on. Pause on any frame, pin or draw what's wrong, and write a line. Claude Code, Codex, Cursor or any agent gets the exact frame and fixes it.</p>
 
-	<div class="cta"><button data-copy-prompt><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Copy the prompt for your agent</button><span>Paste it into Claude Code, Codex or Cursor. It sets everything up.</span></div>
+	<div class="cta"><button data-copy-prompt><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Copy the prompt for your agent</button><span>Paste it into your agent. It sets everything up.</span></div>
 
 	<div class="demo-wrap" aria-label="The review screen: you point at the title and write a note; the agent picks it up, makes the title bigger and resolves the note">
 		<div class="vl" id="vl" aria-hidden="true">
-			<div class="vl-tb"><span class="logo"><svg viewBox="0 0 24 24"><path d="M5 4.5v15l6.5-4.2L18 19.5v-15z"/></svg></span><b>telestrator</b><span class="sep"></span><span class="ttl">launch-v7.mp4</span><span class="sp"></span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>Connect agent</span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>Sound on</span></div>
+			<div class="vl-tb"><span class="logo"><svg viewBox="0 0 24 24"><path d="M7.5 4.8v11.4a1 1 0 0 0 1.5.9l9.3-5.7a1 1 0 0 0 0-1.7L9 4a1 1 0 0 0-1.5.8z"/><path d="M4.2 20.6c5.4-1.1 10.4-1.6 15.6-1.9" fill="none" stroke="#ef6a4c" stroke-width="2.3" stroke-linecap="round"/></svg></span><b>telestrator</b><span class="sep"></span><span class="ttl">launch-v7.mp4</span><span class="sp"></span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>Connect agent</span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>Sound on</span></div>
 			<div class="vl-work">
 				<div class="vl-centre">
 					<div class="vl-viewer">
@@ -505,7 +514,7 @@ Then, whenever I say "check the video feedback":
 If I say "watch mode", call watch_feedback in a loop and handle my notes as they arrive.
 If I ask you to critique the render, step through it with get_frame and leave your own notes with add_note.</pre>
 
-<div class="foot">see telestrator on <a href="https://github.com/itsloukman/telestrator">github ↗</a></div>
+<div class="foot">see telestrator on <a href="https://github.com/itsloukman/telestrator">github ↗</a><br>made by <a href="https://x.com/itsloukman">@itsloukman ↗</a></div>
 <button class="theme" aria-label="Toggle dark mode"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
 
 <script>

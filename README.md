@@ -1,6 +1,6 @@
 # telestrator
 
-**Point at the frame. Your agent fixes the video.**
+**Iterate on videos with your agent, frame by frame.**
 
 [telestrator.tv](https://telestrator.tv) · [npm](https://www.npmjs.com/package/telestrator) · MIT
 

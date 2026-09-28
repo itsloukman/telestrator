@@ -9,8 +9,9 @@
 	html, body { width: 1200px; height: 630px; overflow: hidden; background: #111110; color: #ededeb; font-family: 'Instrument Sans', sans-serif; -webkit-font-smoothing: antialiased; }
 	.l { position: absolute; left: 64px; top: 0; bottom: 0; width: 400px; display: flex; flex-direction: column; justify-content: center; }
 	.mark { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 38px; }
-	.mark i { width: 34px; height: 34px; border-radius: 9px; background: #ef6a4c; display: grid; place-items: center; }
-	.mark i::after { content: ''; width: 12px; height: 16px; background: #fff; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%); }
+	/* the site's mark, as it looks in dark mode: light square, dark play button, coral stroke */
+	.mark i { width: 34px; height: 34px; border-radius: 9px; background: #ededeb; display: grid; place-items: center; }
+	.mark i svg { width: 21px; height: 21px; fill: #111110; }
 	h1 { font-size: 50px; line-height: 1.02; font-weight: 600; letter-spacing: -0.04em; }
 	h1 span { color: #9a9993; }
 	.url { margin-top: 34px; font: 500 19px 'IBM Plex Mono', monospace; color: #ef6a4c; }
@@ -19,8 +20,8 @@
 </head>
 <body>
 	<div class="l">
-		<div class="mark"><i></i>telestrator</div>
-		<h1>Point at the frame. <span>Your agent fixes the video.</span></h1>
+		<div class="mark"><i><svg viewBox="0 0 24 24"><path d="M7.5 4.8v11.4a1 1 0 0 0 1.5.9l9.3-5.7a1 1 0 0 0 0-1.7L9 4a1 1 0 0 0-1.5.8z"/><path d="M4.2 20.6c5.4-1.1 10.4-1.6 15.6-1.9" fill="none" stroke="#ef6a4c" stroke-width="2.3" stroke-linecap="round"/></svg></i>telestrator</div>
+		<h1>Iterate on videos with your agent, <span>frame by frame.</span></h1>
 		<div class="url">telestrator.tv</div>
 	</div>
 	<iframe class="shot" id="shot" src="index.html"></iframe>
