@@ -1,3 +1,5 @@
 node_modules
 .video-launcher
 .DS_Store
+.env*
+pnpm-lock.yaml

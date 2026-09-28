@@ -34,6 +34,8 @@
 	const saidAround = (t) => (WORDS ? said(t - 1.2, t + 1.2) : said(t - 0.3, t + 0.3));
 	const toast = (m) => { const e = $('#toast'); e.textContent = m; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => (e.style.display = 'none'), 1800); };
 	const scale = () => stage.clientWidth / W;
+	// open = still to do; acknowledged means the agent has picked it up
+	const isOpenN = (n) => (n.status || 'open') === 'open' || n.status === 'acknowledged';
 	const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 	const api = (path, method = 'GET', body) => fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined }).then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(new Error(e.error)))));
 
@@ -43,16 +45,51 @@
 	const stat = () => ($('#stat').textContent = `${P.videoFile} · ${DUR.toFixed(1)} s · ${W}×${H} · ${FPS} fps${SCENES ? ` · ${SCENES.length} scene${SCENES.length > 1 ? 's' : ''}` : ''}`);
 	stat();
 	$('#compState').textContent = P.composition ? 'loading composition…' : 'video only · points give frame coordinates';
-	function counts() { const open = notes.filter((n) => (n.status || 'open') === 'open').length; $('#nNotes3').textContent = notes.length ? `${open} open` + (open < notes.length ? ` · ${notes.length - open} closed` : '') : ''; }
+	function counts() { const open = notes.filter(isOpenN).length; $('#nNotes3').textContent = notes.length ? `${open} open` + (open < notes.length ? ` · ${notes.length - open} closed` : '') : ''; }
 	function audioUi() { $('#audioTxt').textContent = v.muted ? 'Sound off' : 'Sound on'; $('#waves').style.display = v.muted ? 'none' : ''; $('#audioBtn').classList.toggle('on', !v.muted); }
 	$('#audioBtn').onclick = () => { v.muted = !v.muted; localStorage.setItem('vl:muted', v.muted ? '1' : '0'); audioUi(); };
 	audioUi();
+	$('#themeBtn').onclick = () => { const t = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'; document.documentElement.dataset.theme = t; localStorage.setItem('vl:theme', t); };
 	$('#mcpBtn').onclick = (e) => { e.stopPropagation(); $('#mcpPop').classList.toggle('on'); };
 	document.addEventListener('click', (e) => { if (!e.target.closest('#mcpPop')) $('#mcpPop').classList.remove('on'); });
-	$('#mcpCopy').onclick = async () => { await copyText($('#mcpCmd').textContent); toast('Command copied — run it in your terminal'); };
+	// how to add the MCP server, per agent; "Any agent" lets add-mcp find the installed ones and write each one's config
+	const MCP_JSON = JSON.stringify({ mcpServers: { 'video-launcher': { command: 'npx', args: ['-y', 'video-launcher', 'mcp'] } } }, null, 2);
+	const AGENTS = [
+		{ id: 'any', name: 'Any agent', cmd: 'npx add-mcp "npx -y video-launcher mcp" --name video-launcher -g', hint: 'Finds the agents you have (Claude Code, Codex, Cursor, VS Code, Gemini, Windsurf, OpenCode…) and adds it to each one you pick.' },
+		{ id: 'claude', name: 'Claude Code', cmd: 'claude mcp add --scope user video-launcher -- npx -y video-launcher mcp', hint: 'Then start a new Claude Code session.' },
+		{ id: 'codex', name: 'Codex', cmd: 'codex mcp add video-launcher -- npx -y video-launcher mcp', hint: 'Then start a new Codex session.' },
+		{ id: 'cursor', name: 'Cursor', cmd: MCP_JSON, json: true, hint: 'Paste into ~/.cursor/mcp.json (merge with any servers already there).' },
+		{ id: 'vscode', name: 'VS Code', cmd: `code --add-mcp '{"name":"video-launcher","command":"npx","args":["-y","video-launcher","mcp"]}'`, hint: 'Adds it to your VS Code profile, for Copilot agent mode.' },
+		{ id: 'gemini', name: 'Gemini CLI', cmd: 'gemini mcp add -s user video-launcher npx -- -y video-launcher mcp', hint: 'Then start a new Gemini session.' },
+		{ id: 'other', name: 'Other', cmd: MCP_JSON, json: true, hint: 'Any MCP client: a stdio server, command npx, args -y video-launcher mcp.' }
+	];
+	let agent = AGENTS.find((a) => a.id === localStorage.getItem('vl:agent')) || AGENTS[0];
+	const logo = (id) => {
+		const l = window.VL_LOGOS[id];
+		return `<svg class="lg" viewBox="0 0 24 24" ${l.stroke ? 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"' : `fill="${l.fill}"`}><path d="${l.d}"/></svg>`;
+	};
+	$('#mcpMenu').innerHTML = AGENTS.map((a) => `<button data-a="${a.id}">${logo(a.id)}${a.name}</button>`).join('');
+	function agentUi() {
+		for (const b of $('#mcpMenu').children) b.classList.toggle('on', b.dataset.a === agent.id);
+		$('#mcpCur').innerHTML = logo(agent.id) + agent.name;
+		$('#mcpCmd').textContent = agent.cmd;
+		$('#mcpHint').textContent = agent.hint;
+		$('#mcpCopy').textContent = agent.json ? 'Copy config' : 'Copy command';
+	}
+	$('#mcpPick').onclick = () => $('#mcpDd').classList.toggle('open');
+	$('#mcpMenu').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; agent = AGENTS.find((a) => a.id === b.dataset.a); localStorage.setItem('vl:agent', agent.id); $('#mcpDd').classList.remove('open'); agentUi(); };
+	document.addEventListener('click', (e) => { if (!e.target.closest('#mcpDd')) $('#mcpDd').classList.remove('open'); });
+	agentUi();
+	$('#mcpCopy').onclick = async () => { await copyText(agent.cmd); toast(agent.json ? 'Config copied — paste it into the file' : 'Command copied — run it in your terminal'); };
 	$('#showResolved').checked = localStorage.getItem('vl:showResolved') === '1';
 	$('#showResolved').onchange = () => { localStorage.setItem('vl:showResolved', $('#showResolved').checked ? '1' : '0'); renderList(); renderMarks(); };
-	const visible = () => notes.filter((n) => $('#showResolved').checked || (n.status || 'open') === 'open');
+	const visible = () => notes.filter((n) => $('#showResolved').checked || isOpenN(n));
+
+	// H hides the markers of saved notes on the frame (pins and drawings), to see the picture clean
+	function toggleMarks() {
+		document.body.classList.toggle('nomarks');
+		renderInk(true);
+	}
 
 	// ---- viewer: fit the stage (the video's aspect) inside the viewer body ------------------------------------------------
 	function fitStage() {
@@ -124,7 +161,54 @@
 		for (let a = e.parentElement, k = 0; !text && a && k < 4 && !near; a = a.parentElement, k++) near = (a.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 60);
 		// report the box in video pixels
 		const kx = W / compW, ky = H / compH;
-		return { path: cssPath(e), text, near, tag: e.tagName.toLowerCase(), box: { x: Math.round(r.left * kx), y: Math.round(r.top * ky), w: Math.round(r.width * kx), h: Math.round(r.height * ky) } };
+		return { node: e, path: cssPath(e), text, near, tag: e.tagName.toLowerCase(), box: { x: Math.round(r.left * kx), y: Math.round(r.top * ky), w: Math.round(r.width * kx), h: Math.round(r.height * ky) } };
+	}
+	// the element's styles on this frame, so "too small" comes with how big it is now
+	const hex = (c) => {
+		const m = /^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/.exec(c);
+		if (!m) return c;
+		const h = '#' + [m[1], m[2], m[3]].map((x) => (+x).toString(16).padStart(2, '0')).join('');
+		return m[4] != null && +m[4] < 1 ? `${h} @ ${Math.round(+m[4] * 100)}%` : h;
+	};
+	function stylesOf(e) {
+		try {
+			const cs = comp.contentWindow.getComputedStyle(e), out = {};
+			const plain = { opacity: '1', transform: 'none', 'border-radius': '0px', 'letter-spacing': 'normal', 'background-color': 'rgba(0, 0, 0, 0)', 'text-shadow': 'none' };
+			for (const k of ['font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'color', 'background-color', 'opacity', 'transform', 'border-radius', 'text-shadow']) {
+				let val = cs.getPropertyValue(k);
+				if (!val || plain[k] === val) continue;
+				if (k === 'font-family') val = val.split(',')[0].replace(/["']/g, '').trim();
+				if (k.endsWith('color')) val = hex(val);
+				out[k] = val;
+			}
+			return out;
+		} catch { return null; }
+	}
+	// where the element is written in the composition's HTML: its opening tag's line, or the nearest ancestor's that we can find
+	let compSrc = null;
+	if (P.composition) fetch(P.composition).then((r) => r.text()).then((t) => (compSrc = t)).catch(() => {});
+	function findSource(el) {
+		if (!compSrc) return null;
+		const file = decodeURIComponent(P.composition.replace(/^\/comp\//, ''));
+		const attr = (a, name) => (new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i').exec(a) || [])[1];
+		for (let e = el, up = 0; e && up < 6 && e.tagName !== 'BODY' && e.tagName !== 'HTML'; e = e.parentElement, up++) {
+			const tag = e.tagName.toLowerCase();
+			const cls = typeof e.className === 'string' ? e.className.trim().split(/\s+/).filter(Boolean) : [];
+			if (!e.id && !cls.length) continue;
+			// the source tags that are this element: same id, or classes that are all on it (scripts may add more later)
+			const hits = [];
+			const re = new RegExp(`<${tag}\\b([^>]*)>`, 'gi');
+			for (let m; (m = re.exec(compSrc)); ) {
+				const id = attr(m[1], 'id'), sc = (attr(m[1], 'class') || '').split(/\s+/).filter(Boolean);
+				if (e.id ? id === e.id : sc.length && sc.every((c) => cls.includes(c))) hits.push(m.index);
+			}
+			if (!hits.length) continue;
+			// the n-th such tag in the source is the n-th such element on the page
+			const same = e.id ? [e] : [...comp.contentDocument.querySelectorAll(tag + '.' + CSS.escape(cls[0]))];
+			const at = hits[Math.min(Math.max(0, same.indexOf(e)), hits.length - 1)];
+			return { file, line: compSrc.slice(0, at).split('\n').length, ...(e !== el ? { via: `inside ${e.id ? '#' + e.id : tag + '.' + cls.join('.')}` } : {}) };
+		}
+		return null;
 	}
 	// hit-test at video pixel (x, y) against the frame on screen
 	function hitAt(x, y) {
@@ -154,7 +238,15 @@
 		v.pause();
 		const [x, y] = evPt(ev);
 		const d = hitAt(x, y);
-		draft = { ink: draft.ink, t: +v.currentTime.toFixed(3), fx: x / W, fy: y / H, el: d ? { path: d.path, text: d.text, near: d.near, box: d.box } : null };
+		const el = d ? { path: d.path, text: d.text, near: d.near, box: d.box, tag: d.tag } : null;
+		if (d) {
+			const classes = typeof d.node.className === 'string' ? d.node.className.trim() : '';
+			if (classes) el.classes = classes;
+			const styles = stylesOf(d.node), source = findSource(d.node);
+			if (styles && Object.keys(styles).length) el.styles = styles;
+			if (source) el.source = source;
+		}
+		draft = { ink: draft.ink, t: +v.currentTime.toFixed(3), fx: x / W, fy: y / H, el };
 		hideSel();
 		setMode(null);
 		$('#cmText').focus();
@@ -249,7 +341,8 @@
 	// the draft's shapes, plus the saved drawings of any note sitting on this frame
 	function renderInk(force) {
 		const t = v.currentTime;
-		const vis = visible().filter((n) => n.ink && Math.abs(n.t - t) < 0.25 && (!editing || n.id !== editing.id));
+		const marks = !document.body.classList.contains('nomarks');
+		const vis = marks ? visible().filter((n) => n.ink && Math.abs(n.t - t) < 0.25 && (!editing || n.id !== editing.id)) : [];
 		const k = vis.map((n) => n.id).join() + '|' + JSON.stringify(draft.ink || []);
 		if (k === inkKey && !force) return;
 		inkKey = k;
@@ -382,7 +475,7 @@
 		show.forEach((n) => {
 			if (Math.abs(n.t - t) >= 0.25 && n !== d) return;
 			const p = document.createElement('div');
-			p.className = 'pin';
+			p.className = n === d ? 'pin draft' : 'pin';
 			p.textContent = n === d ? '+' : notes.indexOf(n) + 1;
 			p.style.left = n.fx * 100 + '%'; p.style.top = n.fy * 100 + '%';
 			p.onclick = (e) => { e.stopPropagation(); if (n !== d) select(n.id); };
@@ -476,7 +569,7 @@
 			const k = n.kind === 'range' ? 'rg' : n.kind === 'time' ? 'tm' : n.kind === 'draw' ? 'dw' : 'pt';
 			e.className = 'mk ' + k + (n.id === activeId ? ' on' : '');
 			e.style.left = t2px(n.t) + 'px';
-			if ((n.status || 'open') !== 'open') e.style.opacity = '0.45';
+			if (!isOpenN(n)) e.style.opacity = '0.45';
 			if (k === 'rg') { e.style.width = Math.max(22, t2px(n.t2 - n.t)) + 'px'; e.innerHTML = `<b>${i + 1}</b><span>${esc(n.text)}</span>`; }
 			else e.innerHTML = `<b>${n.ink ? '✎ ' : ''}${i + 1}</b>`;
 			e.title = `${i + 1}. ${n.text}`;
@@ -572,6 +665,7 @@
 		else if (e.key === 'p' || e.key === 'P') setMode(mode === 'point' ? null : 'point');
 		else if (e.key === 'd' || e.key === 'D') setMode(mode === 'draw' ? null : 'draw');
 		else if (e.key === 'm' || e.key === 'M') $('#audioBtn').click();
+		else if (e.key === 'h' || e.key === 'H') toggleMarks();
 		else if (e.key === 'f' || e.key === 'F') $('#fs').click();
 		else if (e.key === 'Escape') { if (mode) setMode(null); else { draft = {}; hideSel(); renderComposer(); renderInk(true); } }
 	});
@@ -598,12 +692,13 @@
 		shown.forEach((n) => {
 			const i = notes.indexOf(n);
 			const st = n.status || 'open';
+			const open = isOpenN(n);
 			const e = document.createElement('div');
 			e.className = 'note ' + st + (n.id === activeId ? ' active' : '');
 			const when = n.kind === 'range' ? `${tcode(n.t).slice(3)}–${tcode(n.t2).slice(3)}` : tcode(n.t).slice(3);
 			const cls = n.kind === 'range' ? 'r' : n.kind === 'time' ? 't' : '';
 			const s = sceneAt(n.t);
-			e.innerHTML = `${n.thumb ? `<img src="${n.thumb}">` : '<div class="noimg"></div>'}<div style="min-width:0"><div class="hd"><span class="n ${cls}">${i + 1}</span><span class="tcs">${when}</span>${st !== 'open' ? `<span class="st ${st}">${st}</span>` : `<span class="scn">${esc(scenes().length > 1 ? s.name : '')}</span>`}<button class="x" title="Delete">×</button></div><div class="txt"></div>${n.fx != null || n.ink ? `<div class="el"></div>` : ''}</div>`;
+			e.innerHTML = `${n.thumb ? `<img src="${n.thumb}">` : '<div class="noimg"></div>'}<div style="min-width:0"><div class="hd"><span class="n ${cls}">${i + 1}</span><span class="tcs">${when}</span>${st !== 'open' ? `<span class="st ${st}">${st}</span>` : `<span class="scn">${esc(scenes().length > 1 ? s.name : '')}</span>`}<button class="x" title="Delete">×</button></div><div class="txt"></div>${n.fx != null || n.ink ? `<div class="el"></div>` : ''}${n.by === 'agent' ? '<div class="tags"><span class="tagp agent">from agent</span></div>' : ''}</div>`;
 			e.querySelector('.txt').textContent = n.text;
 			if (n.fx != null || n.ink) e.querySelector('.el').textContent = [n.fx != null && '◎ ' + (n.el ? elLabel(n.el) : `spot ${Math.round(n.fx * W)},${Math.round(n.fy * H)}`), n.ink && '✎ ' + ((n.inkInfo && n.inkInfo.shapes[0]) || 'drawing')].filter(Boolean).join(' · ');
 			if ((n.thread || []).length) {
@@ -615,12 +710,12 @@
 			if (n.id === activeId) {
 				const r = document.createElement('div');
 				r.className = 'reply';
-				r.innerHTML = `<input placeholder="${n.thread && n.thread.length ? 'Reply…' : 'Add to this note…'}" /><button class="btn" data-a="reply">Send</button><button class="btn ghost" data-a="status">${st === 'open' ? 'Resolve' : 'Reopen'}</button>`;
+				r.innerHTML = `<input placeholder="${n.thread && n.thread.length ? 'Reply…' : 'Add to this note…'}" /><button class="btn" data-a="reply">Send</button><button class="btn ghost" data-a="status">${open ? 'Resolve' : 'Reopen'}</button>`;
 				const input = r.querySelector('input');
 				const send = async () => { const t = input.value.trim(); if (!t) return; input.value = ''; await api(`/api/notes/${n.id}/reply`, 'POST', { text: t }); await refresh(true); };
 				input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') send(); ev.stopPropagation(); });
 				r.querySelector('[data-a=reply]').onclick = (ev) => { ev.stopPropagation(); send(); };
-				r.querySelector('[data-a=status]').onclick = async (ev) => { ev.stopPropagation(); await api(`/api/notes/${n.id}/status`, 'POST', { status: st === 'open' ? 'resolved' : 'open' }); await refresh(true); };
+				r.querySelector('[data-a=status]').onclick = async (ev) => { ev.stopPropagation(); await api(`/api/notes/${n.id}/status`, 'POST', { status: open ? 'resolved' : 'open' }); await refresh(true); };
 				r.onclick = (ev) => ev.stopPropagation();
 				e.appendChild(r);
 			}
@@ -644,7 +739,7 @@
 	async function refresh(force) {
 		const r = await fetch('/api/review').then((x) => x.json()).catch(() => null);
 		if (!r || (!force && r.updated === updated)) return;
-		const agentMoved = updated && (r.notes || []).some((n) => { const o = notes.find((x) => x.id === n.id); return o && ((o.thread || []).length !== (n.thread || []).length || o.status !== n.status); });
+		const agentMoved = updated && (r.notes || []).some((n) => { const o = notes.find((x) => x.id === n.id); return o ? (o.thread || []).length !== (n.thread || []).length || o.status !== n.status : n.by === 'agent'; });
 		updated = r.updated;
 		notes = r.notes || [];
 		counts(); renderList(); renderMarks();
@@ -658,7 +753,7 @@
 		try { await navigator.clipboard.writeText(s); } catch { const ta = document.createElement('textarea'); ta.value = s; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
 	}
 	$('#copy').onclick = async () => {
-		const open = notes.filter((n) => (n.status || 'open') === 'open').length;
+		const open = notes.filter(isOpenN).length;
 		if (!open) { toast('No open notes'); return; }
 		await copyText(await fetch('/api/markdown?status=open').then((r) => r.text()));
 		toast(`Copied ${open} note${open > 1 ? 's' : ''} — paste it to your agent`);

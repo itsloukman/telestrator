@@ -3,6 +3,7 @@
 // so an agent can pick feedback up (and resolve it) without the UI running.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, renameSync } from 'node:fs';
 import { dirname, basename, join, relative, resolve } from 'node:path';
+import { homedir } from 'node:os';
 
 export const DIR = '.video-launcher';
 
@@ -66,6 +67,32 @@ export function findReviews(root, depth = 6) {
 	return out
 		.map((file) => ({ file, review: readReview(file), mtime: statSync(file).mtimeMs }))
 		.filter((x) => x.review)
+		.sort((a, b) => b.mtime - a.mtime);
+}
+
+// reviews opened lately, across projects (~/.video-launcher/recent.json): lets an agent that wasn't started in the
+// project folder (IDEs, desktop apps, a global MCP config) still find them
+const recentFile = () => join(homedir(), DIR, 'recent.json');
+const readRecent = () => {
+	try {
+		return JSON.parse(readFileSync(recentFile(), 'utf8'));
+	} catch {
+		return [];
+	}
+};
+
+export function rememberReview(file) {
+	try {
+		mkdirSync(dirname(recentFile()), { recursive: true });
+		writeFileSync(recentFile(), JSON.stringify([file, ...readRecent().filter((f) => f !== file)].slice(0, 20), null, '\t'));
+	} catch {}
+}
+
+export function recentReviews() {
+	return readRecent()
+		.map((file) => ({ file, review: readReview(file) }))
+		.filter((x) => x.review)
+		.map((x) => ({ ...x, mtime: statSync(x.file).mtimeMs }))
 		.sort((a, b) => b.mtime - a.mtime);
 }
 

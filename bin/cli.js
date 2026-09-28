@@ -15,9 +15,18 @@ const HELP = `video-launcher — point, draw and comment on any frame of a rende
       --port <n>             Default 4180 (the next free port is used if taken)
       --no-open              Don't open the browser
 
+  npx video-launcher init [--yes]
+      Connect your agents (Claude Code, Codex, Cursor, VS Code, Gemini…) and add the Claude Code skill.
+
+  npx video-launcher doctor [video | folder]
+      Check the setup: Node, ffmpeg, which agents are connected, and what a video resolves to.
+
   npx video-launcher mcp [--root <dir>]
-      MCP server over stdio for agents: list_reviews, get_feedback, get_frame, reply, resolve, dismiss.
-      Claude Code:  claude mcp add video-launcher -- npx -y video-launcher mcp
+      MCP server over stdio for agents: list_reviews, get_feedback, watch_feedback, get_frame, acknowledge, reply,
+      resolve, dismiss, add_note.
+      Any agent:    npx add-mcp "npx -y video-launcher mcp" --name video-launcher -g
+      Claude Code:  claude mcp add --scope user video-launcher -- npx -y video-launcher mcp
+      Codex:        codex mcp add video-launcher -- npx -y video-launcher mcp
 `;
 
 const argv = process.argv.slice(2);
@@ -26,6 +35,7 @@ const pos = [];
 for (let i = 0; i < argv.length; i++) {
 	const a = argv[i];
 	if (a === '-h' || a === '--help') flags.help = true;
+	else if (a === '-y' || a === '--yes') flags.yes = true;
 	else if (a.startsWith('--no-')) flags[a.slice(5)] = false;
 	else if (a.startsWith('--')) flags[a.slice(2)] = argv[++i];
 	else pos.push(a);
@@ -35,6 +45,12 @@ if (flags.help) { process.stdout.write(HELP); process.exit(0); }
 if (pos[0] === 'mcp') {
 	const { startMcp } = await import('../src/mcp.js');
 	await startMcp({ root: flags.root || process.cwd() });
+} else if (pos[0] === 'init') {
+	const { init } = await import('../src/init.js');
+	await init({ yes: !!flags.yes });
+} else if (pos[0] === 'doctor') {
+	const { doctor } = await import('../src/doctor.js');
+	process.exit(doctor(pos[1]) ? 1 : 0);
 } else {
 	let project;
 	try {
@@ -54,7 +70,7 @@ if (pos[0] === 'mcp') {
 	console.log(`  composition  ${project.composition ? r(project.composition) + '  (pointing at elements: on)' : 'none  (pointing gives frame coordinates)'}`);
 	if (project.captions) console.log(`  captions     ${r(project.captions)}`);
 	console.log(`  notes        ${r(started.file)}`);
-	console.log(`\n  Agents: claude mcp add video-launcher -- npx -y video-launcher mcp\n`);
+	console.log(`\n  Agents: npx video-launcher init   (or "Connect agent" in the review)\n`);
 	if (flags.open !== false) {
 		const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
 		const args = process.platform === 'win32' ? ['/c', 'start', '', started.url] : [started.url];

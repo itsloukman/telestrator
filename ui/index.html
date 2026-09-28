@@ -11,6 +11,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>video-launcher</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('vl:theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');</script>
 <style>
 	:root {
 		--bg: #1f1f1f; --chrome: #262626; --panel: #2b2b2b; --panel-2: #323232; --well: #1b1b1b;
@@ -193,10 +194,66 @@
 	.pop.on { display: block; }
 	.pop b { display: block; font-size: 13px; margin-bottom: 6px; }
 	.pop p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 10px; }
-	.pop code { display: block; font: 11.5px var(--mono); background: var(--well); border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; color: var(--ink); overflow-wrap: anywhere; }
-	.pop .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+	.pop code { display: block; font: 11.5px var(--mono); background: var(--well); border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; color: var(--ink); overflow-wrap: anywhere; white-space: pre-wrap; }
+	.pop .dd { position: relative; margin-bottom: 8px; }
+	.pop .dd-btn, .pop .dd-menu button { width: 100%; display: flex; align-items: center; gap: 9px; color: var(--ink); font-size: 12.5px; cursor: pointer; text-align: left; }
+	.pop .dd-btn { height: 34px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); }
+	.pop .dd-btn .chev { margin-left: auto; width: 14px; height: 14px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.15s; }
+	.pop .dd.open .chev { transform: rotate(180deg); }
+	.pop .dd-menu { position: absolute; left: 0; right: 0; top: calc(100% + 4px); background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 4px; display: none; z-index: 1; box-shadow: 0 14px 34px -10px rgba(0,0,0,0.8); }
+	.pop .dd.open .dd-menu { display: block; }
+	.pop .dd-menu button { height: 32px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; }
+	.pop .dd-menu button:hover { background: var(--panel-2); }
+	.pop .dd-menu button.on::after { content: '✓'; margin-left: auto; color: var(--muted); }
+	.pop .lg { width: 16px; height: 16px; flex: none; }
+	.pop .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; border-bottom: 0; }
 	.pop .dim { color: var(--dim); font-size: 11px; flex: 1; }
 	.pop .dim i { font-style: normal; font-family: var(--mono); color: var(--muted); }
+
+	/* agent-written and acknowledged notes; H hides saved markers */
+	.tagp { font: 600 9.5px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 5px; border-radius: 3px; flex: none; }
+	.tagp.agent { color: #b9dbff; background: rgba(111,179,255,0.14); }
+	.note .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+	.note .st.acknowledged { color: #b9dbff; background: rgba(111,179,255,0.14); }
+	body.nomarks .pin:not(.draft) { display: none; }
+	/* ---- light theme (follows the system; the toolbar toggle remembers a choice). The video frame is left as it is ---- */
+	:root[data-theme='light'] {
+		--bg: #f4f4f2; --chrome: #fbfbfa; --panel: #ffffff; --panel-2: #f1f1ef; --well: #e9e9e6;
+		--line: #e3e3df; --line-2: #d3d3ce;
+		--ink: #1b1b1a; --muted: #56554f; --dim: #8b8a84; --faint: #b0afa9;
+		--range: #2a7bd5;
+		--clip-v: #dcd8f2; --clip-v-hd: #cfcaee; --clip-v-bd: #aaa3da;
+	}
+	:root[data-theme='light'] .brand .logo { background: #1b1b1a; }
+	:root[data-theme='light'] .brand .logo svg { fill: #fff; }
+	:root[data-theme='light'] .btn:hover { background: #e9e9e6; }
+	:root[data-theme='light'] .btn.on { background: #e2e2de; border-color: #c9c9c4; }
+	:root[data-theme='light'] .btn.primary, :root[data-theme='light'] #toast { color: #fff; }
+	:root[data-theme='light'] .btn.primary:hover { background: #000; }
+	:root[data-theme='light'] .drawbar .tool:hover { background: #e6e6e2; }
+	:root[data-theme='light'] .drawbar .tool.on { background: #dcdcd8; }
+	:root[data-theme='light'] #scroll::-webkit-scrollbar-thumb { background: #cfcfca; }
+	:root[data-theme='light'] .ruler .tick { background: #c4c4bf; }
+	:root[data-theme='light'] .ruler .tick.big { background: #a3a39e; }
+	:root[data-theme='light'] .clip.pic { color: #2d2750; }
+	:root[data-theme='light'] .mk { color: rgba(0,0,0,0.75); }
+	:root[data-theme='light'] #hover { background: rgba(0,0,0,0.2); }
+	:root[data-theme='light'] .chip.pt, :root[data-theme='light'] #pointBtn.on { color: #b8401f; }
+	:root[data-theme='light'] .chip.dw, :root[data-theme='light'] #drawBtn.on { color: #b3245a; }
+	:root[data-theme='light'] .chip.rg { color: #1f63b0; }
+	:root[data-theme='light'] .chip button { background: rgba(0,0,0,0.06); }
+	:root[data-theme='light'] .chip button:hover { background: rgba(0,0,0,0.12); }
+	:root[data-theme='light'] #cmText:focus { border-color: #a9a9a4; }
+	:root[data-theme='light'] .note.active { background: #f1f1ef; border-color: rgba(0,0,0,0.08); }
+	:root[data-theme='light'] .note .n.t { background: #a3a39c; }
+	:root[data-theme='light'] .note .st.resolved { color: #1f8a4c; background: rgba(31,138,76,0.12); }
+	:root[data-theme='light'] .note .st.dismissed { background: rgba(0,0,0,0.05); }
+	:root[data-theme='light'] .note .st.acknowledged, :root[data-theme='light'] .tagp.agent { color: #1f63b0; background: rgba(42,123,213,0.12); }
+	:root[data-theme='light'] .msg.agent { border-color: rgba(42,123,213,0.35); }
+	:root[data-theme='light'] .pop { box-shadow: 0 18px 50px -12px rgba(0,0,0,0.25); }
+	#themeBtn .sun { display: none; }
+	:root[data-theme='light'] #themeBtn .sun { display: block; }
+	:root[data-theme='light'] #themeBtn .moon { display: none; }
 </style>
 </head>
 <body>
@@ -206,6 +263,7 @@
 	<span class="title" id="title"></span>
 	<span class="sp"></span>
 	<button class="btn" id="mcpBtn" title="Let your agent read these notes"><svg class="ic" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>Connect agent</button>
+	<button class="btn icon" id="themeBtn" title="Light / dark"><svg class="ic moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg class="ic sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></svg></button>
 	<button class="btn" id="audioBtn" title="Sound on/off (M)"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path id="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span id="audioTxt">Sound on</span></button>
 </div>
 
@@ -283,9 +341,10 @@
 	</aside>
 </div>
 
-<footer class="status"><span>Write in the sidebar · <kbd>P</kbd> point · <kbd>D</kbd> draw on the frame · drag the filmstrip for a range · <kbd>N</kbd> write a note · <kbd>⌘</kbd><kbd>↵</kbd> add · <kbd>Space</kbd> play · <kbd>←</kbd><kbd>→</kbd> frame · <kbd>⇧</kbd> 1 s · <kbd>↑</kbd><kbd>↓</kbd> scene</span><span class="sp"></span><span id="stat"></span></footer>
+<footer class="status"><span>Write in the sidebar · <kbd>P</kbd> point · <kbd>D</kbd> draw on the frame · drag the filmstrip for a range · <kbd>N</kbd> write a note · <kbd>⌘</kbd><kbd>↵</kbd> add · <kbd>Space</kbd> play · <kbd>←</kbd><kbd>→</kbd> frame · <kbd>⇧</kbd> 1 s · <kbd>↑</kbd><kbd>↓</kbd> scene · <kbd>H</kbd> markers</span><span class="sp"></span><span id="stat"></span></footer>
 <div id="toast"></div>
-<div id="mcpPop" class="pop"><b>Let your agent read these notes</b><p>Add the MCP server once; then ask your agent to “check the video feedback”. It sees every open note with its frame and drawing, can reply to you here, and resolves notes as it fixes them.</p><code id="mcpCmd">claude mcp add video-launcher -- npx -y video-launcher mcp</code><div class="row"><span class="dim">Other clients: command <i>npx</i>, args <i>-y video-launcher mcp</i>, run from your project folder.</div><button class="btn primary" id="mcpCopy">Copy command</button></div></div>
+<div id="mcpPop" class="pop"><b>Let your agent read these notes</b><p>Add the MCP server once; then ask your agent to “check the video feedback”. It sees every open note with its frame and drawing, can reply to you here, and resolves notes as it fixes them.</p><div class="dd" id="mcpDd"><button class="dd-btn" id="mcpPick" title="Which agent"><span id="mcpCur" style="display:contents"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-menu" id="mcpMenu"></div></div><code id="mcpCmd"></code><div class="row"><span class="dim" id="mcpHint"></span><button class="btn primary" id="mcpCopy">Copy</button></div></div>
+<script src="/ui/logos.js"></script>
 <script src="/ui/app.js"></script>
 </body>
 </html>

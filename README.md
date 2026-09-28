@@ -34,11 +34,23 @@ The review opens in your browser. Write in the sidebar and the note lands at the
 - **Draw (D):** pen, arrow, box or text, in six colours.
 - **Range:** drag across the filmstrip to cover a stretch of time.
 
-Then connect your agent once:
+Then connect your agent once. This finds the agents you have installed (Claude Code, Codex, Cursor, VS Code, Gemini CLI, Windsurf, OpenCode and more) and adds video-launcher to the ones you pick:
 
 ```sh
-claude mcp add video-launcher -- npx -y video-launcher mcp
+npx add-mcp "npx -y video-launcher mcp" --name video-launcher -g
 ```
+
+Or add it to one agent yourself:
+
+| Agent | Command |
+| --- | --- |
+| Claude Code | `claude mcp add --scope user video-launcher -- npx -y video-launcher mcp` |
+| Codex | `codex mcp add video-launcher -- npx -y video-launcher mcp` |
+| Gemini CLI | `gemini mcp add -s user video-launcher npx -- -y video-launcher mcp` |
+| VS Code | `code --add-mcp '{"name":"video-launcher","command":"npx","args":["-y","video-launcher","mcp"]}'` |
+| Cursor, Windsurf, others | add a stdio server: command `npx`, args `["-y", "video-launcher", "mcp"]` (e.g. in `~/.cursor/mcp.json`) |
+
+The review's **Connect agent** button shows the same, one tab per agent. Start a new agent session afterwards so it loads the tools.
 
 After that, ask it to *"check the video feedback"*. There's also a **Copy for agent** button if you'd rather paste.
 
@@ -92,11 +104,7 @@ This is a JSON file named `<video>.review.json`, or `video-launcher.json`, place
 
 The MCP server reads and writes the same review files the UI uses, so the UI doesn't need to be running. When the UI is open, it picks up the agent's replies and resolutions within two seconds. You can answer in the note's thread, or reopen the note.
 
-Other MCP clients need two things:
-- command: `npx`
-- args: `["-y", "video-launcher", "mcp"]`
-
-Run it from your project folder, or pass `--root <dir>`.
+The server looks for reviews under the folder the agent starts it in (or `--root <dir>`). If there are none there, as when an IDE or desktop app starts it from your home folder, it uses the reviews you opened lately with `npx video-launcher`, listed in `~/.video-launcher/recent.json`.
 
 ## Where notes live
 

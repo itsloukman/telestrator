@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>video-launcher · point at the frame, your agent fixes the video</title>
+<meta name="description" content="Frame-accurate feedback on rendered videos, for AI agents. Pause, point at what's wrong, and your agent gets the time, the element, its source line and the frame itself. Works with HyperFrames, Remotion or any MP4." />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23ef6a4c'/%3E%3Cpath d='M8 6.5v11l4-2.6 4 2.6v-11z' fill='white'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+	:root {
+		--bg: #ffffff; --ink: #111110; --muted: #6f6e69; --dim: #a09f99; --line: #ececea;
+		--well: #f1f1ef; --card: #ffffff; --frame: #1d1d1c; --frame-2: #2a2a28;
+		--pin: #ef6a4c; --blue: #3a7bd5; --green: #2f8a4f; --pink: #c2386b;
+		--sans: 'Instrument Sans', ui-sans-serif, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, monospace;
+	}
+	:root[data-theme='dark'] {
+		--bg: #111110; --ink: #ededeb; --muted: #9a9993; --dim: #6c6b66; --line: #262624;
+		--well: #1c1c1b; --card: #181817; --frame: #0b0b0a; --frame-2: #1f1f1d;
+		--blue: #7fb0f5; --green: #7cc896; --pink: #ef7fa6;
+	}
+	* { box-sizing: border-box; margin: 0; padding: 0; }
+	html { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+	body { max-width: 468px; margin: 0 auto; padding: 120px 20px 140px; }
+	a { color: var(--blue); text-decoration: none; }
+	a:hover { text-decoration: underline; text-underline-offset: 3px; }
+	code, pre { font-family: var(--mono); font-size: 12.5px; }
+	p code, li code, td code, dd code { background: var(--well); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+	nav { display: flex; gap: 14px; margin-bottom: 56px; font-size: 15px; }
+	nav a { color: var(--muted); }
+	nav a:first-child { color: var(--ink); font-weight: 500; }
+	nav a:hover { color: var(--ink); text-decoration: none; }
+
+	section { margin-bottom: 64px; }
+	h1, h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.005em; margin-bottom: 10px; }
+	.lede { color: var(--muted); margin-bottom: 26px; }
+	p { color: var(--muted); }
+	p + p { margin-top: 10px; }
+	.note { font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+	pre { background: var(--well); border-radius: 6px; padding: 12px 14px; overflow-x: auto; line-height: 1.65; color: var(--ink); }
+	.cmd { position: relative; }
+	.cmd pre { padding-right: 44px; }
+	.copy { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: var(--dim); cursor: pointer; display: grid; place-items: center; }
+	.copy:hover { color: var(--ink); background: var(--line); }
+	.copy svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+	.d { color: var(--dim); } .k { color: var(--pink); } .f { color: var(--blue); } .s { color: var(--green); } .h { color: var(--pink); font-weight: 500; } .b { color: var(--ink); font-weight: 500; }
+
+	ol.steps { list-style: none; counter-reset: s; }
+	ol.steps li { counter-increment: s; display: grid; grid-template-columns: 22px 1fr; color: var(--muted); margin-bottom: 6px; }
+	ol.steps li::before { content: counter(s) '.'; color: var(--dim); }
+	ol.steps b { color: var(--ink); font-weight: 500; }
+
+	table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+	td { padding: 7px 0; border-top: 1px solid var(--line); vertical-align: top; color: var(--muted); }
+	td:first-child { width: 150px; padding-right: 12px; }
+	td:first-child code { background: none; padding: 0; color: var(--ink); }
+	tr:last-child td { border-bottom: 1px solid var(--line); }
+
+	dl dt { color: var(--ink); font-weight: 500; margin-top: 18px; }
+	dl dd { color: var(--muted); }
+
+	.foot { position: fixed; bottom: 18px; left: 22px; font-size: 13px; color: var(--muted); }
+	.theme { position: fixed; bottom: 12px; right: 16px; width: 30px; height: 30px; border: 0; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; border-radius: 6px; }
+	.theme:hover { color: var(--ink); background: var(--well); }
+	.theme svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+	@media (max-width: 720px) { .foot { position: static; margin-top: 40px; } body { padding-top: 56px; } }
+
+	/* ---- the demo: our review screen, same colours and parts as the app, playing the loop on its own ------------------------
+	   Drawn at the app's own size (1000×540) and scaled to fit. Always dark, like the app. */
+	.demo-wrap { position: relative; width: min(820px, calc(100vw - 32px)); left: 50%; transform: translateX(-50%); border-radius: 10px; overflow: hidden; margin-bottom: 14px; box-shadow: 0 0 0 1px rgba(0,0,0,0.08), 0 30px 60px -30px rgba(0,0,0,0.45); }
+	:root[data-theme='dark'] .demo-wrap { box-shadow: 0 0 0 1px #2e2e2c, 0 30px 60px -30px rgba(0,0,0,0.8); }
+	.vl { --t: 14s; --bg: #1f1f1f; --chrome: #262626; --panel: #2b2b2b; --panel-2: #323232; --well: #1b1b1b; --line: #3a3a3a; --line-2: #4a4a4a; --ink: #ededed; --muted: #bbbbbb; --dim: #8a8a8a; --pin: #ef6a4c; --range: #6fb3ff; --arm-pt: #ffb9a8; --arm-dw: #ffb3cd;
+		position: absolute; top: 0; left: 0; width: 1000px; height: 540px; transform-origin: 0 0; display: grid; grid-template-rows: 38px 1fr 22px; background: var(--bg); color: var(--ink); font: 12.5px/1.4 -apple-system, system-ui, 'Segoe UI', sans-serif; text-align: left; }
+	.vl .mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+	.vl .sp { flex: 1; }
+	.vl .ic { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+	.vl .btn { height: 25px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); font-size: 11.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+	.vl-tb { display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--chrome); border-bottom: 1px solid var(--line); }
+	.vl-tb .logo { width: 20px; height: 20px; border-radius: 5px; background: #f4f4f0; display: grid; place-items: center; }
+	.vl-tb .logo svg { width: 12px; height: 12px; fill: #0f0f0c; }
+	.vl-tb b { font-weight: 600; font-size: 12.5px; }
+	.vl-tb .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+	.vl-tb .ttl { color: var(--muted); }
+	.vl-work { display: grid; grid-template-columns: 1fr 262px; grid-template-rows: minmax(0, 1fr); min-height: 0; }
+	.vl-centre { display: grid; grid-template-rows: 1fr 120px; min-width: 0; border-right: 1px solid var(--line); }
+	.vl-hd { height: 26px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-bottom: 1px solid var(--line); background: var(--chrome); color: var(--muted); font-size: 11px; }
+	.vl-hd b { color: var(--ink); font-weight: 500; }
+	.vl-viewer { display: grid; grid-template-rows: 26px 1fr 32px; background: var(--well); border-bottom: 1px solid var(--line); min-height: 0; }
+	.vl-body { display: grid; place-items: center; padding: 10px; }
+	/* the frame: a product launch video, on the scene where the headline is too small */
+	/* the frame: a launch film for "Relay", a made-up async-standup product. Paper, grain, an editorial headline and
+	   the product itself, tilted and running off the frame */
+	.vl-stage { --ink: #141414; --brand: #2f5bff; position: relative; width: 470px; aspect-ratio: 16 / 9; overflow: hidden; font-family: 'Instrument Sans', sans-serif; background: radial-gradient(55% 75% at 100% 100%, #ffd6bf 0%, transparent 70%), radial-gradient(45% 55% at 78% 0%, #dfe6ff 0%, transparent 70%), #f3efe6; box-shadow: 0 0 0 1px #000, 0 10px 40px -10px rgba(0,0,0,0.7); }
+	.vl-stage::after { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E"); opacity: 0.16; mix-blend-mode: multiply; pointer-events: none; z-index: 3; }
+	.vl-stage .brand { position: absolute; left: 24px; top: 18px; display: flex; align-items: center; gap: 5px; font: 600 9px 'Instrument Sans', sans-serif; letter-spacing: -0.01em; color: var(--ink); }
+	.vl-stage .brand i { width: 10px; height: 10px; border-radius: 3px; background: var(--brand); box-shadow: inset -3px -3px 0 rgba(0,0,0,0.18); }
+	.vl-stage .big { position: absolute; left: 23px; top: 44px; margin: 0; font: 600 31px/0.93 'Instrument Sans', sans-serif; letter-spacing: -0.045em; color: var(--ink); }
+	.vl-stage .big em { font: italic 400 34px/0.9 'Instrument Serif', Georgia, serif; letter-spacing: -0.02em; color: var(--brand); }
+	.vl-stage .hbox { position: absolute; left: 24px; top: 158px; }
+	.vl-stage .h { margin: 0; font: 400 10.5px/1.35 'Instrument Sans', sans-serif; color: #5f5a52; transform-origin: 0 0; animation: vl-grow var(--t) infinite; }
+	.vl-stage .cta { position: absolute; left: 24px; top: 205px; display: flex; gap: 6px; }
+	.vl-stage .cta span { font: 600 7.5px 'Instrument Sans', sans-serif; padding: 5px 9px; border-radius: 20px; background: var(--ink); color: #fff; }
+	.vl-stage .cta span + span { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px rgba(20,20,20,0.2); }
+	/* the product: an update feed */
+	.vl-stage .win { position: absolute; left: 236px; top: 36px; width: 262px; height: 250px; border-radius: 9px; background: #fff; overflow: hidden; transform: perspective(900px) rotateY(-14deg) rotateX(4deg); transform-origin: 0 50%; box-shadow: 0 0 0 1px rgba(20,20,20,0.07), 0 24px 40px -12px rgba(80,50,20,0.35); }
+	.vl-stage .win .tb { height: 15px; display: flex; align-items: center; gap: 3px; padding: 0 7px; border-bottom: 1px solid #efece6; }
+	.vl-stage .win .tb i { width: 4.5px; height: 4.5px; border-radius: 50%; background: #e2ded6; }
+	.vl-stage .win .bd { display: grid; grid-template-columns: 48px 1fr; height: 100%; }
+	.vl-stage .win .nav { background: #f7f5f0; padding: 8px 6px; display: flex; flex-direction: column; gap: 6px; }
+	.vl-stage .win .nav i { height: 5px; border-radius: 2px; background: #e4e0d8; }
+	.vl-stage .win .nav i:first-child { background: #dfe6ff; box-shadow: 0 0 0 2px #dfe6ff; }
+	.vl-stage .win .nav i:nth-child(2) { width: 70%; } .vl-stage .win .nav i:nth-child(4) { width: 80%; }
+	.vl-stage .win .main { padding: 8px 9px; }
+	.vl-stage .win .top { display: flex; align-items: baseline; gap: 5px; font-size: 8px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
+	.vl-stage .win .top small { font-size: 6px; font-weight: 400; color: #9a958c; }
+	.vl-stage .win .card { display: grid; grid-template-columns: 13px 1fr auto; gap: 5px; align-items: start; margin-top: 6px; padding: 6px; border-radius: 6px; border: 1px solid #efece6; }
+	.vl-stage .win .av { width: 13px; height: 13px; border-radius: 50%; }
+	.vl-stage .win .who { font-size: 6.5px; font-weight: 600; color: var(--ink); line-height: 1.2; }
+	.vl-stage .win .who span { display: block; font-weight: 400; color: #7d786f; }
+	.vl-stage .win .chip { font-size: 5.5px; font-weight: 600; padding: 2px 4px; border-radius: 4px; white-space: nowrap; }
+	.vl-stage .win .ok { background: #e3f6ea; color: #1f8a4c; } .vl-stage .win .no { background: #ffe6de; color: #c8431f; } .vl-stage .win .rv { background: #e6ebff; color: #2f5bff; }
+	.vl-pin { position: absolute; left: 62%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: var(--pin); color: #fff; font: 700 10px/20px -apple-system, sans-serif; text-align: center; box-shadow: 0 0 0 3px rgba(239,106,76,0.35); opacity: 0; animation: vl-pin var(--t) infinite; }
+	.vl-ft { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 10px; border-top: 1px solid var(--line); background: var(--chrome); }
+	.vl-ft .tc { font: 500 11.5px ui-monospace, Menlo, monospace; } .vl-ft .of { color: var(--dim); }
+	.vl-ft .tr { display: flex; gap: 12px; color: var(--muted); }
+	/* timeline: ruler, the scenes with their filmstrip, the comments track */
+	.vl-tl { position: relative; background: var(--panel); overflow: hidden; }
+	.vl-ruler { position: relative; height: 20px; background: var(--chrome); border-bottom: 1px solid var(--line); background-image: repeating-linear-gradient(90deg, #555 0 1px, transparent 1px 18.2px); background-size: 100% 5px; background-repeat: no-repeat; background-position: 0 100%; }
+	.vl-ruler span { position: absolute; top: 3px; font: 9px ui-monospace, Menlo, monospace; color: var(--dim); }
+	.vl-clips { position: relative; height: 62px; }
+	.vl-clip { position: absolute; top: 5px; height: 54px; border-radius: 4px; background: #5d5977; border: 1px solid #7a75a0; overflow: hidden; }
+	.vl-clip.on { box-shadow: 0 0 0 1.5px #b3aee0; }
+	.vl-clip .cap { display: block; padding: 2px 6px; font-size: 9.5px; color: #eceaf6; background: #676386; white-space: nowrap; overflow: hidden; }
+	.vl-clip .strip { height: 34px; background-size: 60px 34px; }
+	.vl-clip.a .strip { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='34'%3E%3Crect width='58' height='34' fill='%230e0e0d'/%3E%3Crect x='6' y='9' width='4' height='1' fill='%232f5bff'/%3E%3Crect x='6' y='13' width='30' height='7' rx='1' fill='%23fff'/%3E%3Crect x='6' y='23' width='22' height='2' rx='1' fill='%238d8a84'/%3E%3C/svg%3E"); }
+	.vl-clip.b .strip { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='34'%3E%3Cdefs%3E%3CradialGradient id='g' cx='1' cy='1' r='.7'%3E%3Cstop offset='0' stop-color='%23ffd6bf'/%3E%3Cstop offset='1' stop-color='%23f3efe6'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='58' height='34' fill='url(%23g)'/%3E%3Crect x='4' y='6' width='18' height='3' rx='.5' fill='%23141414'/%3E%3Crect x='4' y='10.5' width='14' height='3' rx='.5' fill='%232f5bff'/%3E%3Crect x='4' y='15' width='16' height='3' rx='.5' fill='%23141414'/%3E%3Crect x='4' y='21' width='14' height='1.5' rx='.7' fill='%235f5a52' opacity='.7'/%3E%3Crect x='30' y='5' width='28' height='29' rx='2' fill='%23fff' stroke='%23e8e3da' stroke-width='.5'/%3E%3Crect x='37' y='10' width='18' height='4' rx='1' fill='%23f1eee8'/%3E%3Crect x='37' y='16' width='18' height='4' rx='1' fill='%23f1eee8'/%3E%3Crect x='37' y='22' width='18' height='4' rx='1' fill='%23f1eee8'/%3E%3Ccircle cx='39' cy='12' r='1.3' fill='%23e8643c'/%3E%3Ccircle cx='39' cy='18' r='1.3' fill='%232f5bff'/%3E%3Ccircle cx='39' cy='24' r='1.3' fill='%232e9a5b'/%3E%3C/svg%3E"); }
+	.vl-clip.c .strip { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='34'%3E%3Crect width='58' height='34' fill='%232f5bff'/%3E%3Crect x='14' y='10' width='30' height='4' rx='1' fill='%23fff'/%3E%3Crect x='20' y='18' width='18' height='6' rx='3' fill='%23141414'/%3E%3C/svg%3E"); }
+	.vl-notes { position: relative; height: 26px; }
+	.vl-mk { position: absolute; left: calc(47% - 11px); top: 5px; height: 18px; padding: 0 7px; border-radius: 5px; background: rgba(239,106,76,0.2); border: 1px solid var(--pin); color: #ffc4b4; font: 700 10px/16px -apple-system, sans-serif; opacity: 0; animation: vl-note var(--t) infinite; }
+	.vl-head { position: absolute; top: 0; bottom: 0; width: 1.5px; background: var(--pin); left: 6%; animation: vl-head var(--t) infinite; }
+	.vl-head::before { content: ''; position: absolute; top: 0; left: -4.5px; width: 10px; height: 8px; border-radius: 0 0 3px 3px; background: var(--pin); }
+	/* the sidebar: the composer, then the note with its thread */
+	.vl-side { background: var(--panel); display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+	.vl-side .vl-hd .cnt { position: relative; font: 10.5px ui-monospace, Menlo, monospace; color: var(--dim); }
+	.vl-side .vl-hd .c-open { animation: vl-open var(--t) infinite; }
+	.vl-side .vl-hd .c-done { position: absolute; left: 0; white-space: nowrap; opacity: 0; animation: vl-res var(--t) infinite; }
+	.vl-side .vl-hd label { display: flex; align-items: center; gap: 4px; color: var(--dim); font-size: 10px; }
+	.vl-side .vl-hd label i { width: 10px; height: 10px; border: 1px solid var(--line-2); border-radius: 2px; }
+	.vl-comp { padding: 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 7px; }
+	.vl-comp .where { display: flex; gap: 7px; font-size: 10.5px; color: var(--dim); }
+	.vl-comp .where .tc { color: var(--ink); font: 500 11px ui-monospace, Menlo, monospace; }
+	.vl-chip { align-self: flex-start; display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 3px 0 8px; border-radius: 11px; font-size: 10.5px; color: #ffcbbd; border: 1px solid rgba(239,106,76,0.55); background: rgba(239,106,76,0.12); opacity: 0; animation: vl-chip var(--t) infinite; }
+	.vl-chip b { width: 15px; height: 15px; border-radius: 8px; background: rgba(255,255,255,0.08); font-weight: 400; text-align: center; line-height: 15px; }
+	.vl-ta { position: relative; height: 58px; border-radius: 7px; border: 1px solid var(--line-2); background: var(--well); padding: 7px 8px; font-size: 12px; }
+	.vl-ta .ph { position: absolute; color: #6d6d6d; animation: vl-ph var(--t) infinite; }
+	.vl-ta .typed { display: inline-block; white-space: nowrap; overflow: hidden; width: 0; vertical-align: top; animation: vl-type var(--t) infinite steps(28); }
+	.vl-ta .typed::after { content: ''; display: inline-block; width: 1px; height: 13px; margin-left: 1px; vertical-align: -2px; background: var(--ink); }
+	.vl-row { display: flex; align-items: center; gap: 5px; }
+	.vl-row .ib { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); display: grid; place-items: center; color: var(--muted); }
+	.vl-row .ib.pt { animation: vl-arm var(--t) infinite; }
+	.vl-row .add { height: 26px; padding: 0 11px; border-radius: 6px; background: var(--ink); color: #111; font-weight: 500; font-size: 11.5px; display: grid; place-items: center; animation: vl-press var(--t) infinite; }
+	.vl-list { padding: 6px; }
+	.vl-note { display: grid; grid-template-columns: 66px 1fr; gap: 8px; padding: 7px; border-radius: 7px; background: #383838; border: 1px solid rgba(255,255,255,0.1); opacity: 0; animation: vl-note var(--t) infinite; }
+	.vl-thumb { width: 66px; aspect-ratio: 16 / 9; border-radius: 3px; border: 1px solid var(--line); position: relative; overflow: hidden; background: radial-gradient(60% 80% at 100% 100%, #ffd6bf, transparent 70%), #f3efe6; }
+	.vl-thumb i { position: absolute; left: 6%; top: 16%; width: 30%; height: 34%; background: linear-gradient(#141414 0 26%, transparent 26% 37%, #2f5bff 37% 63%, transparent 63% 74%, #141414 74%); }
+	.vl-thumb b { position: absolute; left: 14%; top: 60%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--pin); box-shadow: 0 0 0 1px #fff; }
+	.vl-thumb u { position: absolute; left: 50%; top: 14%; width: 56%; height: 100%; border-radius: 2px; background: repeating-linear-gradient(#fff 0 3px, #f1eee8 3px 7px, #fff 7px 9px), #fff; box-shadow: 0 0 0 0.5px #e0dbd2; }
+	.vl-nhd { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--dim); position: relative; }
+	.vl-nhd .n { width: 15px; height: 15px; border-radius: 50%; background: var(--pin); color: #fff; font: 700 9px/15px -apple-system, sans-serif; text-align: center; }
+	.vl-nhd .tcs { font: 500 10px ui-monospace, Menlo, monospace; color: var(--ink); }
+	.vl-nhd .st { position: absolute; right: 14px; top: 1px; font: 600 8px/1 ui-monospace, Menlo, monospace; letter-spacing: 0.02em; padding: 3px 4px; border-radius: 3px; opacity: 0; }
+	.vl-nhd .st.ack { color: #b9dbff; background: rgba(111,179,255,0.14); animation: vl-ack var(--t) infinite; }
+	.vl-nhd .st.res { color: #7fe0a6; background: rgba(111,214,155,0.14); animation: vl-res var(--t) infinite; }
+	.vl-note .txt { margin-top: 3px; font-size: 11.5px; }
+	.vl-note .el { margin-top: 2px; font: 9.5px ui-monospace, Menlo, monospace; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.vl-msg { grid-column: 1 / -1; font-size: 11px; line-height: 1.4; max-height: 0; padding: 0 7px; margin-top: -8px; overflow: hidden; border-radius: 6px; background: var(--well); border: 0 solid rgba(111,179,255,0.35); opacity: 0; animation: vl-msg var(--t) infinite; }
+	.vl-msg i { display: block; font: normal 600 8.5px ui-monospace, Menlo, monospace; color: var(--range); letter-spacing: 0.04em; margin-bottom: 1px; }
+	/* the rest of the real screen: status bar, sidebar footer, the comments track's label, delete on a note */
+	.vl-status { display: flex; align-items: center; gap: 12px; padding: 0 10px; background: var(--chrome); border-top: 1px solid var(--line); color: var(--dim); font-size: 10px; white-space: nowrap; overflow: hidden; }
+	.vl-status kbd { font: 500 9px ui-monospace, Menlo, monospace; padding: 0 3px; border-radius: 3px; border: 1px solid var(--line-2); }
+	.vl-side .vl-list { flex: 1; }
+	.vl-sft { display: flex; gap: 7px; padding: 8px; border-top: 1px solid var(--line); background: var(--chrome); }
+	.vl-sft .btn { height: 27px; }
+	.vl-sft .btn.primary { flex: 1; justify-content: center; background: var(--ink); color: #111; border-color: var(--ink); }
+	.vl-notes .lab { position: absolute; left: 6px; top: 7px; font-size: 9.5px; color: #6d6d6d; }
+	.vl-nhd .x { margin-left: auto; color: var(--dim); font-size: 13px; line-height: 1; }
+	/* values that change as the playhead moves: timecode and scene, rolled like an odometer */
+	.roll { display: inline-block; height: 1.4em; overflow: hidden; vertical-align: bottom; }
+	.roll > span { display: block; height: 1.4em; white-space: nowrap; animation: vl-roll var(--t) infinite; }
+	.roll.two > span { animation-name: vl-roll2; }
+	/* the frame before the playhead reaches s4 */
+	.vl-stage .s3 { position: absolute; inset: 0; z-index: 2; padding: 64px 30px 0; background: #0e0e0d; color: #fff; animation: vl-s3 var(--t) infinite; }
+	.vl-stage .s3 i { display: block; width: 18px; height: 3px; border-radius: 2px; background: #2f5bff; margin-bottom: 14px; }
+	.vl-stage .s3 b { display: block; font: 600 50px/0.9 'Instrument Sans', sans-serif; letter-spacing: -0.055em; }
+	.vl-stage .s3 span { display: block; margin-top: 10px; font: 400 12px 'Instrument Sans', sans-serif; color: #8d8a84; }
+	.vl-stage .s3 span em { font: italic 400 14px 'Instrument Serif', Georgia, serif; color: #fff; }
+	.vl-clip.a { animation: vl-on-a var(--t) infinite; }
+	.vl-clip.b { animation: vl-on-b var(--t) infinite; }
+	.vl-pin .p1, .vl-pin .p2 { position: absolute; inset: 0; }
+	.vl-pin .p1 { animation: vl-plus var(--t) infinite; }
+	.vl-pin .p2 { opacity: 0; animation: vl-one var(--t) infinite; }
+	/* drawing: the button, the toolbar, the stroke, the second note */
+	.vl-row .ib.dw { animation: vl-arm-dw var(--t) infinite; }
+	.vl-chips { position: relative; height: 22px; }
+	.vl-chips .vl-chip { position: absolute; left: 0; top: 0; }
+	.vl-chip.dw { color: #ffb3cd; border-color: rgba(255,79,139,0.55); background: rgba(255,79,139,0.12); animation-name: vl-chip2; }
+	.vl-drawbar { position: absolute; left: 0; right: 0; top: -3px; height: 28px; display: flex; align-items: center; gap: 2px; padding: 2px 3px; border: 1px solid var(--line); border-radius: 7px; background: var(--well); opacity: 0; animation: vl-bar var(--t) infinite; }
+	.vl-drawbar .t { width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center; color: var(--muted); }
+	.vl-drawbar .t.on { background: #474747; color: var(--ink); }
+	.vl-drawbar .t .ic { width: 11px; height: 11px; }
+	.vl-drawbar .dv { width: 1px; height: 14px; background: var(--line-2); margin: 0 3px; }
+	.vl-drawbar .sw { width: 11px; height: 11px; border-radius: 50%; margin: 0 2px; }
+	.vl-drawbar .sw.on { outline: 1.5px solid var(--ink); outline-offset: 1.5px; }
+	.vl-ta .typed2 { position: absolute; left: 8px; top: 7px; white-space: nowrap; overflow: hidden; width: 0; animation: vl-type2 var(--t) infinite steps(30); }
+	.vl-ta .typed2::after { content: ''; display: inline-block; width: 1px; height: 13px; margin-left: 1px; vertical-align: -2px; background: var(--ink); }
+	.vl-ink { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; overflow: visible; }
+	.vl-ink path { fill: none; stroke: #ff4f8b; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5)); animation: vl-ink var(--t) infinite; }
+	.vl-list { overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+	.vl-note.n2 { animation-name: vl-note2; }
+	.vl-note.n2 .st.ack { animation-name: vl-ack2; }
+	.vl-note.n2 .n { background: #ff4f8b; }
+	.vl-thumb s { position: absolute; left: 60%; top: 22%; width: 38%; height: 62%; border: 1.2px solid #ff4f8b; border-radius: 50%; }
+	.vl-mk.m2 { left: calc(47% + 12px); background: rgba(255,79,139,0.2); border-color: #ff4f8b; color: #ffc4d8; animation-name: vl-note2; }
+	.vl-side .vl-hd .c-two { position: absolute; left: 0; white-space: nowrap; opacity: 0; animation: vl-two var(--t) infinite; }
+	/* the reviewer's cursor: positions are measured from the screen (see the script) */
+	.vl-cur { position: absolute; z-index: 5; left: var(--rx0, 0); top: var(--ry, 0); pointer-events: none; animation: vl-cur var(--t) infinite; }
+	.vl-cur svg { display: block; width: 20px; height: 20px; margin: -2px 0 0 -3px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); transform-origin: 3px 2px; animation: vl-click var(--t) infinite; }
+	/* light: the app's own light theme, shown when the page is light */
+	:root[data-theme='light'] .vl { --bg: #f4f4f2; --chrome: #fbfbfa; --panel: #ffffff; --panel-2: #f1f1ef; --well: #e9e9e6; --line: #e3e3df; --line-2: #d3d3ce; --ink: #1b1b1a; --muted: #56554f; --dim: #8b8a84; --range: #2a7bd5; --arm-pt: #b8401f; --arm-dw: #b3245a; }
+	:root[data-theme='light'] .vl-tb .logo { background: #1b1b1a; }
+	:root[data-theme='light'] .vl-tb .logo svg { fill: #fff; }
+	:root[data-theme='light'] .vl-ruler { background-image: repeating-linear-gradient(90deg, #c4c4bf 0 1px, transparent 1px 18.2px); }
+	:root[data-theme='light'] .vl-clip { background: #dcd8f2; border-color: #aaa3da; }
+	:root[data-theme='light'] .vl-clip .cap { color: #2d2750; background: #cfcaee; }
+	:root[data-theme='light'] .vl-mk, :root[data-theme='light'] .vl-chip { color: #b8401f; }
+	:root[data-theme='light'] .vl-mk.m2, :root[data-theme='light'] .vl-chip.dw { color: #b3245a; }
+	:root[data-theme='light'] .vl-chip b { background: rgba(0,0,0,0.06); }
+	:root[data-theme='light'] .vl-ta .ph, :root[data-theme='light'] .vl-notes .lab { color: #a3a29c; }
+	:root[data-theme='light'] .vl-row .add, :root[data-theme='light'] .vl-sft .btn.primary { color: #fff; }
+	:root[data-theme='light'] .vl-note { background: #f1f1ef; border-color: rgba(0,0,0,0.08); }
+	:root[data-theme='light'] .vl-nhd .st.ack { color: #1f63b0; background: rgba(42,123,213,0.12); }
+	:root[data-theme='light'] .vl-nhd .st.res { color: #1f8a4c; background: rgba(31,138,76,0.12); }
+	:root[data-theme='light'] .vl-msg { border-color: rgba(42,123,213,0.35); }
+	:root[data-theme='light'] .vl-drawbar .t.on { background: #dcdcd8; }
+	:root[data-theme='light'] .vl-stage { box-shadow: 0 0 0 1px rgba(0,0,0,0.1), 0 10px 30px -12px rgba(0,0,0,0.3); }
+	@keyframes vl-cur {
+		0% { left: var(--rx0); top: var(--ry); opacity: 1; animation-timing-function: linear }
+		11.43% { left: var(--rx1); top: var(--ry); opacity: 1 }
+		12.5%, 13.21% { left: var(--ptx); top: var(--pty) }
+		18.21%, 19.64% { left: var(--pinx); top: var(--piny) }
+		22.14%, 30.71% { left: var(--tax); top: var(--tay) }
+		32.5%, 33.21% { left: var(--addx); top: var(--addy) }
+		38.57%, 39.64% { left: var(--dwx); top: var(--dwy) }
+		43.57% { left: var(--c0x); top: var(--c0y) }
+		44.29% { left: var(--c0x); top: var(--c0y); animation-timing-function: linear }
+		45.71% { left: var(--c1x); top: var(--c1y); animation-timing-function: linear }
+		47.14% { left: var(--c2x); top: var(--c2y); animation-timing-function: linear }
+		48.57% { left: var(--c3x); top: var(--c3y); animation-timing-function: linear }
+		50% { left: var(--c0x); top: var(--c0y) }
+		53.57%, 58.57% { left: var(--tax); top: var(--tay) }
+		60%, 61.07% { left: var(--addx); top: var(--addy); opacity: 1 }
+		65% { left: var(--outx); top: var(--outy); opacity: 0 }
+		95.71% { left: var(--rx0); top: var(--ry); opacity: 0 }
+		98.57%, 100% { left: var(--rx0); top: var(--ry); opacity: 1 }
+	}
+	@keyframes vl-click { 0% { transform: none } 12.79% { transform: none } 12.93% { transform: scale(0.82) } 13.29% { transform: none } 19.14% { transform: none } 19.29% { transform: scale(0.82) } 19.64% { transform: none } 32.79% { transform: none } 32.93% { transform: scale(0.82) } 33.29% { transform: none } 39.14% { transform: none } 39.29% { transform: scale(0.82) } 39.64% { transform: none } 60.57% { transform: none } 60.71% { transform: scale(0.82) } 61.07% { transform: none } 100% { transform: none } }
+	@keyframes vl-roll { 0%, 2.79% { transform: none } 2.86%, 6.36% { transform: translateY(-100%) } 6.43%, 9.21% { transform: translateY(-200%) } 9.29%, 100% { transform: translateY(-300%) } }
+	@keyframes vl-roll2 { 0%, 6.36% { transform: none } 6.43%, 100% { transform: translateY(-100%) } }
+	@keyframes vl-s3 { 0%, 6.36% { opacity: 1 } 6.43%, 100% { opacity: 0 } }
+	@keyframes vl-on-a { 0%, 6.36% { box-shadow: 0 0 0 1.5px #b3aee0 } 6.43%, 100% { box-shadow: none } }
+	@keyframes vl-on-b { 0%, 6.36% { box-shadow: none } 6.43%, 100% { box-shadow: 0 0 0 1.5px #b3aee0 } }
+	@keyframes vl-plus { 0%, 33.93% { opacity: 1 } 34.29%, 100% { opacity: 0 } }
+	@keyframes vl-one { 0%, 33.93% { opacity: 0 } 34.29%, 100% { opacity: 1 } }
+	/* 0–16% scrub · 18% point armed · 27% pin · 29–44% write · 47% add · 57% seen · 66% agent replies · 77% fixed and resolved · 96% reset */
+	@keyframes vl-head { 0% { left: 6%; animation-timing-function: linear } 11.43%, 100% { left: 47% } }
+	@keyframes vl-arm { 0%, 12.14% { background: var(--panel-2); border-color: var(--line-2); color: var(--muted) } 12.86%, 19.29% { background: rgba(239,106,76,0.18); border-color: var(--pin); color: var(--arm-pt) } 20%, 100% { background: var(--panel-2); border-color: var(--line-2); color: var(--muted) } }
+	@keyframes vl-pin { 0%, 18.57% { opacity: 0; transform: scale(0.3) } 20% { opacity: 1; transform: scale(1.15) } 20.71%, 80.71% { opacity: 1; transform: scale(1) } 82.86%, 100% { opacity: 0; transform: scale(1) } }
+	@keyframes vl-chip { 0%, 19.29% { opacity: 0 } 20.71%, 33.57% { opacity: 1 } 34.29%, 100% { opacity: 0 } }
+	@keyframes vl-ph { 0%, 21.07% { opacity: 1 } 21.21%, 33.93% { opacity: 0 } 34.29%, 53.57% { opacity: 1 } 53.71%, 61.07% { opacity: 0 } 61.43%, 100% { opacity: 1 } }
+	@keyframes vl-type { 0%, 21.43% { width: 0 } 31.43%, 33.57% { width: 196px } 33.93%, 100% { width: 0 } }
+	@keyframes vl-press { 0%, 32.5% { transform: none } 32.86% { transform: scale(0.94) } 33.57%, 60.36% { transform: none } 60.71% { transform: scale(0.94) } 61.43%, 100% { transform: none } }
+	@keyframes vl-note { 0%, 33.57% { opacity: 0; transform: translateY(-4px) } 35%, 95% { opacity: 1; transform: none } 97.14%, 100% { opacity: 0 } }
+	@keyframes vl-ack { 0%, 67.14% { opacity: 0 } 68.57%, 81.43% { opacity: 1 } 82.14%, 100% { opacity: 0 } }
+	/* the reply grows the card, as it does in the app */
+	@keyframes vl-msg { 0%, 72.86% { opacity: 0; max-height: 0; padding: 0 7px; margin-top: -8px; border-width: 0 } 74.29% { opacity: 0; max-height: 70px; padding: 5px 7px; margin-top: 0; border-width: 1px } 75.71%, 95% { opacity: 1; max-height: 70px; padding: 5px 7px; margin-top: 0; border-width: 1px } 97.14%, 100% { opacity: 0; max-height: 70px; padding: 5px 7px; margin-top: 0; border-width: 1px } }
+	@keyframes vl-open { 0%, 33.57% { opacity: 0 } 35%, 61.07% { opacity: 1 } 61.43%, 100% { opacity: 0 } }
+	@keyframes vl-res { 0%, 82.14% { opacity: 0 } 83.57%, 95% { opacity: 1 } 97.86%, 100% { opacity: 0 } }
+	/* the drawing note: Draw, circle the chart, write, add */
+	@keyframes vl-arm-dw { 0%, 39.21% { background: var(--panel-2); border-color: var(--line-2); color: var(--muted) } 39.29%, 50.36% { background: rgba(255,79,139,0.18); border-color: #ff4f8b; color: var(--arm-dw) } 50.71%, 100% { background: var(--panel-2); border-color: var(--line-2); color: var(--muted) } }
+	@keyframes vl-bar { 0%, 39.21% { opacity: 0 } 39.64%, 50.36% { opacity: 1 } 50.71%, 100% { opacity: 0 } }
+	@keyframes vl-ink { 0%, 44.24% { stroke-dashoffset: 1; opacity: 0 } 44.29% { stroke-dashoffset: 1; opacity: 1 } 50%, 95% { stroke-dashoffset: 0; opacity: 1 } 97.86%, 100% { stroke-dashoffset: 0; opacity: 0 } }
+	@keyframes vl-chip2 { 0%, 50.36% { opacity: 0 } 51.07%, 61.07% { opacity: 1 } 61.43%, 100% { opacity: 0 } }
+	@keyframes vl-type2 { 0%, 53.93% { width: 0 } 59.29%, 61.07% { width: 190px } 61.43%, 100% { width: 0 } }
+	@keyframes vl-note2 { 0%, 61.07% { opacity: 0; transform: translateY(-4px) } 62.14%, 95% { opacity: 1; transform: none } 97.86%, 100% { opacity: 0 } }
+	@keyframes vl-ack2 { 0%, 67.14% { opacity: 0 } 68.57%, 95% { opacity: 1 } 97.86%, 100% { opacity: 0 } }
+	@keyframes vl-two { 0%, 61.07% { opacity: 0 } 61.43%, 82.14% { opacity: 1 } 83.57%, 100% { opacity: 0 } }
+	@keyframes vl-grow { 0%, 82.14% { transform: none } 85%, 95% { transform: scale(1.35) } 97.86%, 100% { transform: none } }
+	@media (prefers-reduced-motion: reduce) {
+		.vl * { animation: none !important; }
+		.vl-cur, .vl-stage .s3, .vl-pin .p1 { display: none; } .vl-pin .p2 { opacity: 1; }
+		.vl-head { left: 47%; } .vl-stage .h { transform: scale(1.35); }
+		.vl-note, .vl-mk, .vl-nhd .st.res, .vl-note.n2 .st.ack { opacity: 1; }
+		.vl-ink path { stroke-dashoffset: 0; } .vl-chip, .vl-drawbar { opacity: 0; }
+		.vl-msg { opacity: 1; max-height: none; padding: 5px 7px; margin-top: 0; border-width: 1px; }
+	}
+	.demo-cap { font-size: 13px; color: var(--dim); margin-bottom: 26px; }
+</style>
+<script>document.documentElement.dataset.theme = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');</script>
+</head>
+<body>
+
+<nav><a href="#">video-launcher</a><a href="#start">Start</a><a href="#agents">Agents</a><a href="#questions">Questions</a><a href="https://github.com/itsloukman/video-launcher">GitHub</a></nav>
+
+<section>
+	<h1>Point at the frame. Your agent fixes the video.</h1>
+	<p class="lede">You made a video with an agent. Now tell it what to change without describing pixels: pause, point at what's wrong, write one line. Your agent gets the exact frame, the element, the line of code that draws it, and the picture itself.</p>
+
+	<div class="demo-wrap" aria-label="The review screen: you point at the title and write a note; the agent picks it up, makes the title bigger and resolves the note">
+		<div class="vl" id="vl" aria-hidden="true">
+			<div class="vl-tb"><span class="logo"><svg viewBox="0 0 24 24"><path d="M5 4.5v15l6.5-4.2L18 19.5v-15z"/></svg></span><b>video-launcher</b><span class="sep"></span><span class="ttl">launch-v7.mp4</span><span class="sp"></span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>Connect agent</span><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>Sound on</span></div>
+			<div class="vl-work">
+				<div class="vl-centre">
+					<div class="vl-viewer">
+						<div class="vl-hd"><b><span class="roll two"><span>s3 · The problem</span><span>s4 · The product</span></span></b><span class="sp"></span><span>1920×1080 · 30 fps</span></div>
+						<div class="vl-body">
+							<div class="vl-stage">
+								<div class="brand"><i></i>Relay</div>
+								<h3 class="big">Standups,<br><em>without</em> the<br>meeting.</h3>
+								<div class="hbox"><p class="h">Async updates your team<br>actually reads.</p><span class="vl-pin"><span class="p1">+</span><span class="p2">1</span></span></div>
+								<div class="cta"><span>Try Relay free</span><span>See how it works</span></div>
+								<div class="win"><div class="tb"><i></i><i></i><i></i></div><div class="bd"><div class="nav"><i></i><i></i><i></i><i></i><i></i></div><div class="main">
+									<div class="top">Today<small>12 updates · 3 blocked</small></div>
+									<div class="card"><span class="av" style="background:linear-gradient(135deg,#ffb38a,#e8643c)"></span><span class="who">Maya Chen<span>Shipped onboarding v2</span></span><span class="chip ok">Shipped</span></div>
+									<div class="card"><span class="av" style="background:linear-gradient(135deg,#9db4ff,#2f5bff)"></span><span class="who">Tom Okafor<span>Waiting on API keys</span></span><span class="chip no">Blocked</span></div>
+									<div class="card"><span class="av" style="background:linear-gradient(135deg,#b6e3c6,#2e9a5b)"></span><span class="who">Ana Ruiz<span>Pricing page, ready to review</span></span><span class="chip rv">In review</span></div>
+									<div class="card"><span class="av" style="background:linear-gradient(135deg,#f3d27a,#d49b16)"></span><span class="who">Leo Park<span>Release notes drafted</span></span><span class="chip ok">Shipped</span></div>
+								</div></div></div>
+								<svg class="vl-ink" viewBox="0 0 470 264.375"><path pathLength="1" d="M378 63 C 432 61, 468 96, 466 143 C 464 192, 424 224, 376 223 C 326 222, 289 190, 290 141 C 291 94, 330 64, 384 66"/></svg>
+								<div class="s3"><i></i><b>4.5 hours</b><span>a week, lost to <em>status meetings.</em></span></div>
+							</div>
+						</div>
+						<div class="vl-ft"><span class="tc"><span class="roll"><span>00:00:03:10</span><span>00:00:07:22</span><span>00:00:10:15</span><span>00:00:12:04</span></span> <span class="of">/ 00:00:38:00</span></span>
+							<div class="tr"><svg class="ic" viewBox="0 0 24 24"><path d="M6 5v14M18 5l-9 7 9 7z"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z" fill="currentColor"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M18 5v14M6 5l9 7-9 7z"/></svg></div><span></span></div>
+					</div>
+					<div class="vl-tl">
+						<div class="vl-ruler"><span style="left:4px">00:00:00:00</span><span style="left:26%">00:00:10:00</span><span style="left:52%">00:00:20:00</span><span style="left:78%">00:00:30:00</span></div>
+						<div class="vl-clips">
+							<div class="vl-clip a" style="left:0;width:30%"><span class="cap">s3 · The problem</span><div class="strip"></div></div>
+							<div class="vl-clip b" style="left:calc(30% + 2px);width:34%"><span class="cap">s4 · The product</span><div class="strip"></div></div>
+							<div class="vl-clip c" style="left:calc(64% + 4px);width:calc(36% - 4px)"><span class="cap">s5 · Get started</span><div class="strip"></div></div>
+						</div>
+						<div class="vl-notes"><span class="lab">Comments</span><span class="vl-mk">1</span><span class="vl-mk m2">✎ 2</span></div>
+						<div class="vl-head"></div>
+					</div>
+				</div>
+				<div class="vl-side">
+					<div class="vl-hd"><b>Notes</b><span class="cnt"><span class="c-open">1 open</span><span class="c-two">2 open</span><span class="c-done">1 open · 1 closed</span></span><span class="sp"></span><label><i></i>Show resolved</label></div>
+					<div class="vl-comp">
+						<div class="where"><span class="tc"><span class="roll"><span>00:00:03:10</span><span>00:00:07:22</span><span>00:00:10:15</span><span>00:00:12:04</span></span></span><span class="roll two"><span>s3 · The problem</span><span>s4 · The product</span></span></div>
+						<div class="vl-chips"><span class="vl-chip">◎ spot 408, 703 <b>×</b></span><span class="vl-chip dw">✎ Drawing · 1 mark <b>×</b></span>
+							<div class="vl-drawbar"><span class="t on"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16z"/></svg></span><span class="t"><svg class="ic" viewBox="0 0 24 24"><path d="M5 19L19 5M10 5h9v9"/></svg></span><span class="t"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/></svg></span><span class="t"><svg class="ic" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13"/></svg></span><span class="dv"></span><span class="sw on" style="background:#ff4f8b"></span><span class="sw" style="background:#ff453a"></span><span class="sw" style="background:#ffd60a"></span><span class="sw" style="background:#32d74b"></span><span class="sw" style="background:#0a84ff"></span><span class="sw" style="background:#fff"></span></div></div>
+						<div class="vl-ta"><span class="ph">What should change here?</span><span class="typed">Tagline is too small on mobile</span><span class="typed2">Cards should slide in one by one</span></div>
+						<div class="vl-row"><span class="ib pt"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg></span><span class="ib dw"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16z"/><path d="M13 7l3 3"/></svg></span><span class="sp"></span><span class="add">Add note</span></div>
+					</div>
+					<div class="vl-list">
+						<div class="vl-note">
+							<div class="vl-thumb"><i></i><u></u><b></b></div>
+							<div style="min-width:0">
+								<div class="vl-nhd"><span class="n">1</span><span class="tcs">00:12:04</span><span class="st ack">ACKNOWLEDGED</span><span class="st res">RESOLVED</span><span class="x">×</span></div>
+								<div class="txt">Tagline is too small on mobile</div>
+								<div class="el">◎ spot 408, 703</div>
+							</div>
+							<div class="vl-msg"><i>AGENT</i>Tagline 43 → 58px in product.html:42. Re-rendered, checked the frame.</div>
+						</div>
+						<div class="vl-note n2">
+								<div class="vl-thumb"><i></i><u></u><s></s></div>
+								<div style="min-width:0">
+									<div class="vl-nhd"><span class="n">2</span><span class="tcs">00:12:04</span><span class="st ack">ACKNOWLEDGED</span><span class="x">×</span></div>
+									<div class="txt">Cards should slide in one by one</div>
+									<div class="el">✎ circled 1185,257 719×654 (pink)</div>
+								</div>
+							</div>
+					</div>
+					<div class="vl-sft"><span class="btn">Clear</span><span class="btn primary">Copy for agent</span></div>
+				</div>
+			</div>
+			<div class="vl-status"><span>Write in the sidebar · <kbd>P</kbd> point · <kbd>D</kbd> draw on the frame · drag the filmstrip for a range · <kbd>N</kbd> write a note · <kbd>Space</kbd> play · <kbd>H</kbd> markers</span><span class="sp"></span><span>renders/launch-v7.mp4 · 38.0 s · 1920×1080 · 30 fps · 5 scenes</span></div>
+			<div class="vl-cur"><svg viewBox="0 0 24 24"><path d="M3.5 2.5l6.8 17.2 2.4-7.1 7.1-2.4z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+		</div>
+	</div>
+	<p class="demo-cap">Pause, point, write. Your agent picks it up, fixes it, and resolves it.</p>
+</section>
+
+<section id="start">
+	<h2>Start with one command</h2>
+	<div class="cmd"><pre><span class="d">$</span> <span class="k">npx</span> video-launcher <span class="s">path/to/video.mp4</span></pre><button class="copy" data-copy="npx video-launcher path/to/video.mp4" aria-label="Copy"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></button></div>
+	<p class="note">A project folder works too: it opens the newest render. The review opens in your browser, and notes stay on your machine.</p>
+	<div class="cmd" style="margin-top:18px"><pre><span class="d">$</span> <span class="k">npx</span> video-launcher <span class="f">init</span></pre><button class="copy" data-copy="npx video-launcher init" aria-label="Copy"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></button></div>
+	<p class="note">Once, to connect your agent: Claude Code, Codex, Cursor, VS Code, Gemini CLI, Windsurf and more. Then ask it to “check the video feedback”.</p>
+</section>
+
+<section>
+	<h2>What your agent gets</h2>
+	<pre><span class="h">## 1. 12.13s (frame 364) · The product</span>
+<span class="d">-</span> <span class="b">Feedback:</span> tagline too small on mobile
+<span class="d">-</span> <span class="b">Narration there:</span> <span class="s">“Async updates your team actually reads.”</span>
+<span class="d">-</span> <span class="b">Pointing at:</span> <span class="f">#s4 > p.tagline</span>
+<span class="d">-</span> <span class="b">Source:</span> <span class="f">scenes/product.html:42</span>
+<span class="d">-</span> <span class="b">Styles now:</span> font-size 43px; color #5f5a52
+<span class="d">-</span> <span class="b">Element box:</span> 98,645 490×116 (in 1920×1080)</pre>
+	<p class="note">Plus the frame itself, with your pin or drawing on it, as an image.</p>
+</section>
+
+<section>
+	<h2>How it works</h2>
+	<ol class="steps">
+		<li><span><b>Pause</b> on the frame. Step frame by frame with the arrow keys.</span></li>
+		<li><span><b>Point</b> at something (P), <b>draw</b> on it (D), or drag the filmstrip for a <b>range</b>.</span></li>
+		<li><span><b>Write</b> one line. The note lands at the playhead.</span></li>
+		<li><span>Your agent <b>fixes</b> the source, re-renders, checks the frame, and <b>resolves</b> the note. If it's unsure, it asks you under the note.</span></li>
+	</ol>
+</section>
+
+<section id="agents">
+	<h2>For agents</h2>
+	<p style="margin-bottom:14px">An MCP server your agent talks to. It reads and writes the same notes you see, so replies show up in your review as they happen.</p>
+	<table>
+		<tr><td><code>get_feedback</code></td><td>Open notes, with each note's frame as an image</td></tr>
+		<tr><td><code>watch_feedback</code></td><td>Waits for your notes while you review: hands-free</td></tr>
+		<tr><td><code>get_frame</code></td><td>Any frame, to check a fix after a re-render</td></tr>
+		<tr><td><code>acknowledge</code></td><td>“Seen it, working on it”</td></tr>
+		<tr><td><code>reply</code></td><td>Asks you a question under the note</td></tr>
+		<tr><td><code>resolve</code> · <code>dismiss</code></td><td>Closes the note, saying what changed or why not</td></tr>
+		<tr><td><code>add_note</code></td><td>The agent critiques the render and leaves its own notes</td></tr>
+	</table>
+</section>
+
+<section>
+	<h2>Works with what you render</h2>
+	<table>
+		<tr><td>HyperFrames</td><td>Pointing names the exact element on that frame, with its source line and styles</td></tr>
+		<tr><td>Remotion</td><td>Points at the spot in the frame; scenes and captions from a sidecar file</td></tr>
+		<tr><td>Any MP4, MOV, WebM</td><td>The spot, the time, the frame, and captions from a <code>.srt</code> or <code>.vtt</code></td></tr>
+	</table>
+</section>
+
+<section id="questions">
+	<h2>Questions</h2>
+	<dl>
+		<dt>Is it free?</dt>
+		<dd>Yes. It's MIT licensed.</dd>
+		<dt>Does my video leave my machine?</dt>
+		<dd>No. It runs locally, and notes are JSON files next to your video in <code>.video-launcher/</code>. Commit them if you want the feedback in git.</dd>
+		<dt>Which agents work?</dt>
+		<dd>Any agent that supports MCP. <code>init</code> sets up the ones you have. Without MCP, use “Copy for agent” and paste.</dd>
+		<dt>Do I need HyperFrames?</dt>
+		<dd>No. Any video works. With a HyperFrames composition, pointing also knows which element you mean and where it's written.</dd>
+		<dt>Something isn't working?</dt>
+		<dd>Run <code>npx video-launcher doctor</code>. It checks Node, ffmpeg, your agents, and what your video resolves to.</dd>
+		<dt>Where's the code?</dt>
+		<dd>On <a href="https://github.com/itsloukman/video-launcher">GitHub</a>. Issues and pull requests are welcome.</dd>
+	</dl>
+</section>
+
+<div class="foot">see video-launcher on <a href="https://github.com/itsloukman/video-launcher">github ↗</a></div>
+<button class="theme" aria-label="Toggle dark mode"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
+
+<script>
+	// the demo is drawn at 1000×540, like the app; scale it to the width it gets
+	const vl = document.getElementById('vl'), wrap = vl.parentElement;
+	new ResizeObserver(() => { const k = wrap.clientWidth / 1000; vl.style.transform = `scale(${k})`; wrap.style.height = 540 * k + 'px'; place(); }).observe(wrap);
+	// the cursor's stops, in the demo's own 1000×540 pixels: the ruler (drag), Point, the title, the text box, Add note
+	function place() {
+		const o = vl.getBoundingClientRect(), k = o.width / 1000 || 1;
+		const at = (sel, fx = 0.5, fy = 0.5) => { const b = vl.querySelector(sel).getBoundingClientRect(); return [(b.left - o.left + b.width * fx) / k, (b.top - o.top + b.height * fy) / k]; };
+		const [r0x, ry] = at('.vl-ruler', 0.06), [r1x] = at('.vl-ruler', 0.47);
+		const stops = { rx0: r0x, ry, rx1: r1x, ptx: at('.vl-row .ib.pt')[0], pty: at('.vl-row .ib.pt')[1], pinx: at('.vl-pin')[0], piny: at('.vl-pin')[1], tax: at('.vl-ta', 0.8)[0], tay: at('.vl-ta', 0.8)[1], addx: at('.vl-row .add')[0], addy: at('.vl-row .add')[1], outx: at('.vl-list', 0.6, 0.4)[0], outy: at('.vl-list', 0.6, 0.4)[1], dwx: at('.vl-row .ib.dw')[0], dwy: at('.vl-row .ib.dw')[1] };
+		// the loop drawn around the chart, in the frame's own 470-wide units: top, right, bottom, left
+		const [sx, sy] = at('.vl-stage', 0, 0);
+		[[378, 63], [466, 143], [376, 223], [290, 141]].forEach(([x, y], i) => { stops['c' + i + 'x'] = sx + x; stops['c' + i + 'y'] = sy + y; });
+		for (const [name, v] of Object.entries(stops)) vl.style.setProperty('--' + name, v.toFixed(1) + 'px');
+	}
+	document.fonts.ready.then(place);
+	document.querySelectorAll('.copy').forEach((b) => (b.onclick = async () => {
+		await navigator.clipboard.writeText(b.dataset.copy);
+		b.style.color = 'var(--green)';
+		setTimeout(() => (b.style.color = ''), 1200);
+	}));
+	document.querySelector('.theme').onclick = () => {
+		const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+		document.documentElement.dataset.theme = t;
+		localStorage.setItem('theme', t);
+	};
+</script>
+</body>
+</html>

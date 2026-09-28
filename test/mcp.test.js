@@ -28,7 +28,7 @@ test('agents read, reply to and resolve feedback', async () => {
 	await client.connect(new StdioClientTransport({ command: process.execPath, args: [cli, 'mcp', '--root', root] }));
 	try {
 		const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-		assert.deepEqual(tools, ['dismiss', 'get_feedback', 'get_frame', 'list_reviews', 'reply', 'resolve']);
+		assert.deepEqual(tools, ['acknowledge', 'add_note', 'dismiss', 'get_feedback', 'get_frame', 'list_reviews', 'reply', 'resolve', 'watch_feedback']);
 
 		const list = await client.callTool({ name: 'list_reviews', arguments: {} });
 		assert.match(list.content[0].text, /film\.mp4 — 2 open \/ 3 total/);
@@ -50,6 +50,27 @@ test('agents read, reply to and resolve feedback', async () => {
 
 		const bad = await client.callTool({ name: 'resolve', arguments: { id: 'nope' } });
 		assert.equal(bad.isError, true);
+	} finally {
+		await client.close();
+	}
+});
+
+test('an agent started outside the project finds the reviews opened lately', async () => {
+	const home = mkdtempSync(join(tmpdir(), 'vl-home-'));
+	const project = mkdtempSync(join(tmpdir(), 'vl-proj-'));
+	const elsewhere = mkdtempSync(join(tmpdir(), 'vl-else-'));
+	mkdirSync(join(project, '.video-launcher'), { recursive: true });
+	const file = join(project, '.video-launcher', 'promo.mp4.json');
+	writeFileSync(file, JSON.stringify({ version: 1, title: 'promo.mp4', video: join(project, 'promo.mp4'), notes: [{ id: 'n1', kind: 'time', t: 1, text: 'Louder', status: 'open', thread: [] }] }));
+	mkdirSync(join(home, '.video-launcher'), { recursive: true });
+	writeFileSync(join(home, '.video-launcher', 'recent.json'), JSON.stringify([file, join(home, 'gone.json')]));
+	const client = new Client({ name: 'test', version: '1.0.0' });
+	await client.connect(new StdioClientTransport({ command: process.execPath, args: [cli, 'mcp', '--root', elsewhere], env: { ...process.env, HOME: home } }));
+	try {
+		const list = await client.callTool({ name: 'list_reviews', arguments: {} });
+		assert.match(list.content[0].text, /promo\.mp4 — 1 open \/ 1 total/);
+		const fb = await client.callTool({ name: 'get_feedback', arguments: {} });
+		assert.match(fb.content[0].text, /Louder/);
 	} finally {
 		await client.close();
 	}

@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, normalize, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ensureReview, pretty, readReview, reviewPath, updateReview } from './store.js';
+import { ensureReview, pretty, readReview, rememberReview, reviewPath, updateReview } from './store.js';
 import { reviewMarkdown } from './format.js';
 
 const UI = join(dirname(fileURLToPath(import.meta.url)), '..', 'ui');
@@ -17,6 +17,8 @@ const MIME = {
 };
 // fields the UI may write; status and the thread are changed through their own routes, so a stale tab can't undo an agent
 const EDITABLE = ['kind', 't', 't2', 'fx', 'fy', 'el', 'ink', 'inkInfo', 'text', 'said', 'scene', 'thumb'];
+// optional attachments: dropped when an edit leaves them out
+const OPTIONAL = ['t2', 'fx', 'fy', 'el', 'ink', 'inkInfo'];
 
 function send(res, code, body, type = 'application/json') {
 	res.writeHead(code, { 'content-type': type, 'cache-control': 'no-store' });
@@ -56,6 +58,7 @@ export function startServer(project, { port = 4180, host = '127.0.0.1' } = {}) {
 	const compDir = project.composition ? dirname(project.composition) : null;
 	const compName = project.composition ? relative(compDir, project.composition) : null;
 	ensureReview(file, { video: project.video, title: project.title, composition: project.composition, fps: project.fps || null, width: null, height: null });
+	rememberReview(file);
 	updateReview(file, (r) => {
 		r.video = project.video;
 		r.title = project.title;
@@ -116,7 +119,7 @@ export function startServer(project, { port = 4180, host = '127.0.0.1' } = {}) {
 				updateReview(file, (r) => {
 					let n = r.notes.find((x) => x.id === b.id);
 					if (!n) { n = { id: b.id || Date.now().toString(36), status: 'open', thread: [], created: new Date().toISOString() }; r.notes.push(n); }
-					for (const k of EDITABLE) if (k in b) n[k] = b[k]; else if (k === 't2' || k === 'fx' || k === 'fy' || k === 'el' || k === 'ink' || k === 'inkInfo') delete n[k];
+					for (const k of EDITABLE) if (k in b) n[k] = b[k]; else if (OPTIONAL.includes(k)) delete n[k];
 					r.notes.sort((a, c) => a.t - c.t);
 					saved = n;
 				});
@@ -133,7 +136,7 @@ export function startServer(project, { port = 4180, host = '127.0.0.1' } = {}) {
 					const n = r.notes.find((x) => x.id === m[1]);
 					if (!n) throw new Error('no such note');
 					if (m[2] === 'reply') (n.thread ||= []).push({ from: 'reviewer', text: String(b.text || ''), at: new Date().toISOString() });
-					else n.status = ['open', 'resolved', 'dismissed'].includes(b.status) ? b.status : 'open';
+					else n.status = ['open', 'acknowledged', 'resolved', 'dismissed'].includes(b.status) ? b.status : 'open';
 				});
 				return send(res, 200, { ok: true });
 			}
