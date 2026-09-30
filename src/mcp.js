@@ -21,7 +21,7 @@ function grabFrame(video, t, width = 960, at = null) {
 
 export async function startMcp({ root = process.cwd() } = {}) {
 	root = resolve(root);
-	const server = new McpServer({ name: 'telestrator', version: '0.1.0' }); // x-release-please-version
+	const server = new McpServer({ name: 'telestrator', version: '0.2.0' }); // x-release-please-version
 
 	// the reviews under the project; when the agent started us elsewhere (an IDE, a desktop app: often the home folder
 	// or /, which we don't crawl), the ones opened lately with `npx telestrator`
