@@ -49,10 +49,10 @@ Something off? `npx telestrator doctor` checks Node, ffmpeg, which agents are co
 Write in the sidebar and the note lands at the playhead. Before you press **Add note**, attach any of these:
 
 - **Point (P):** click something in the frame. On a HyperFrames composition this names the exact element, its source line and its current styles; on a plain video it records the spot.
-- **Draw (D):** pen, arrow, box or text, in six colours.
-- **Range:** drag across the filmstrip to cover a stretch of time.
+- **Draw (D):** pen, arrow, box or text, in six colours and three sizes; the eraser removes a single mark.
+- **Range:** drag along the comments track to cover a stretch of time; drag the ends of a selected range to adjust it.
 
-Notes show their status as your agent works: **acknowledged** when it picks one up, then **resolved** or **dismissed** with a line on why. It can also ask you a question under a note, and you answer in the same thread. Notes the agent leaves itself are marked **from agent**.
+Notes show their status as your agent works: **acknowledged** when it picks one up, then **resolved** or **dismissed** with a line on why. It can also ask you a question under a note, and you answer in the same thread. Anything new from your agent gets a blue dot until you open the note. Notes the agent leaves itself are marked **from agent**. When the video is re-rendered, the review offers to reload, and a note then shows its frame **before** and **now**. A deleted note can be brought back with **Undo** for a few seconds.
 
 `Space` plays, `←` `→` step one frame, `N` writes a note, `⌘↵` adds it. [All shortcuts](#reference).
 
@@ -194,12 +194,14 @@ npx telestrator mcp [--root <dir>]
 | `Space` | play / pause |
 | `←` `→` | step one frame (`⇧` for one second) |
 | `↑` `↓` | previous / next scene |
+| `⇧↑` `⇧↓` | previous / next note |
 | `N` | write a note |
 | `P` | point |
 | `D` | draw (`⌘Z` undoes a mark) |
 | `⌘↵` | add the note |
 | `Esc` | leave a tool, or drop what's attached |
 | `H` | hide or show markers on the frame |
+| `S` | hide or show the notes panel |
 | `M` | toggle sound |
 | `F` | fullscreen |
 

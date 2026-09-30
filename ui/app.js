@@ -34,7 +34,7 @@
 		const out = P.videoPath.replace(/\.[^./\\]+$/, '') + '-h264.mp4';
 		box.querySelector('code').textContent = `ffmpeg -i "${P.videoPath}" -c:v libx264 -pix_fmt yuv420p -c:a aac "${out}"`;
 		$('#vbody').replaceChildren(box);
-		$('#stat').textContent = P.videoFile + ' · can’t play in this browser';
+		$('#title').title = P.videoFile + ' · can’t play in this browser';
 		return;
 	}
 	W = v.videoWidth || W; H = v.videoHeight || H; DUR = v.duration || DUR;
@@ -48,7 +48,17 @@
 	const sceneLabel = (s) => (s.id && s.id !== s.name ? `${s.id} · ${s.name}` : s.name);
 	const said = (a, b) => (WORDS ? WORDS.filter((w) => w[2] >= a - 0.05 && w[1] <= b + 0.05).map((w) => w[0]) : LINES.filter((l) => l.end >= a && l.start <= b).map((l) => l.text)).join(' ');
 	const saidAround = (t) => (WORDS ? said(t - 1.2, t + 1.2) : said(t - 0.3, t + 0.3));
-	const toast = (m) => { const e = $('#toast'); e.textContent = m; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => (e.style.display = 'none'), 1800); };
+	// a toast; with an action it gets a button (Undo, Reload) and stays a little longer
+	const toast = (m, action) => {
+		const e = $('#toast'), wait = (toast.busy || 0) - Date.now();
+		if (!action && wait > 0 && e.classList.contains('show')) { setTimeout(() => toast(m), wait + 50); return; }
+		toast.busy = action ? Date.now() + (action.ms || 5000) : 0;
+		e.textContent = m;
+		if (action) { const b = document.createElement('button'); b.textContent = action.label; b.onclick = () => { clearTimeout(toast.t); toast.busy = 0; e.classList.remove('show'); action.run(); }; e.appendChild(b); }
+		e.classList.toggle('act', !!action);
+		e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), action ? action.ms || 5000 : 1800);
+	};
+	const ago = (iso) => { const s = (Date.now() - Date.parse(iso)) / 1000; if (!isFinite(s)) return ''; if (s < 45) return 'just now'; const m = Math.round(s / 60); if (m < 60) return m + ' min ago'; const h = Math.round(m / 60); return h < 24 ? h + ' h ago' : Math.round(h / 24) + ' d ago'; };
 	const scale = () => stage.clientWidth / W;
 	// open = still to do; acknowledged means the agent has picked it up
 	const isOpenN = (n) => (n.status || 'open') === 'open' || n.status === 'acknowledged';
@@ -58,13 +68,31 @@
 	// ---- chrome ------------------------------------------------------------------------------------------------------
 	document.title = P.title + ' · telestrator';
 	$('#title').textContent = P.title;
-	const stat = () => ($('#stat').textContent = `${P.videoFile} · ${DUR.toFixed(1)} s · ${W}×${H} · ${FPS} fps${SCENES ? ` · ${SCENES.length} scene${SCENES.length > 1 ? 's' : ''}` : ''}`);
+	const stat = () => ($('#title').title = `${P.videoFile} · ${DUR.toFixed(1)} s · ${W}×${H} · ${FPS} fps${SCENES ? ` · ${SCENES.length} scene${SCENES.length > 1 ? 's' : ''}` : ''}`);
 	stat();
 	$('#compState').textContent = P.composition ? 'loading composition…' : 'video only · points give frame coordinates';
-	function counts() { const open = notes.filter(isOpenN).length; $('#nNotes3').textContent = notes.length ? `${open} open` + (open < notes.length ? ` · ${notes.length - open} closed` : '') : ''; }
+	// a deleted note is hidden for 5 s, with Undo, before it is really deleted
+	const gone = new Map();
+	const alive = (n) => !gone.has(n.id);
+	// what the agent has done on a note since you last looked at it: a reply, or a new status. Remembered per review
+	const SEEN = 'vl:seen:' + P.reviewFile;
+	let seen = JSON.parse(localStorage.getItem(SEEN) || 'null');
+	const stamp = (n) => (n.thread || []).filter((m) => m.from === 'agent').length + '|' + (n.status || 'open');
+	const unread = (n) => !!seen && (seen[n.id] === undefined ? n.by === 'agent' : seen[n.id] !== stamp(n));
+	const markSeen = (n) => { if (!seen || seen[n.id] === stamp(n)) return; seen[n.id] = stamp(n); localStorage.setItem(SEEN, JSON.stringify(seen)); };
+	function counts() { const live = notes.filter(alive), open = live.filter(isOpenN).length; $('#sideBtn').classList.toggle('new', live.some(unread)); $('#sideN').textContent = open || ''; $('#nNotes3').textContent = live.length ? `${open} open` + (open < live.length ? ` · ${live.length - open} closed` : '') : ''; }
 	function audioUi() { $('#audioBtn').title = (v.muted ? 'Sound off' : 'Sound on') + ' (M)'; $('#waves').style.display = v.muted ? 'none' : ''; $('#mute').style.display = v.muted ? '' : 'none'; }
 	$('#audioBtn').onclick = () => { v.muted = !v.muted; localStorage.setItem('vl:muted', v.muted ? '1' : '0'); audioUi(); };
 	audioUi();
+	// the notes panel opens and closes (S); it opens again whenever you start writing or pick a note
+	function side(open) {
+		document.documentElement.classList.toggle('side-off', !open);
+		localStorage.setItem('vl:side', open ? '1' : '0');
+		$('#sideBtn').title = (open ? 'Hide notes' : 'Show notes') + ' (S)';
+	}
+	side(!document.documentElement.classList.contains('side-off'));
+	$('#sideBtn').onclick = () => side(document.documentElement.classList.contains('side-off'));
+	$('.insp').addEventListener('focusin', () => side(true));
 	$('#themeBtn').onclick = () => { const t = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'; document.documentElement.dataset.theme = t; localStorage.setItem('vl:theme', t); };
 	$('#mcpBtn').onclick = (e) => { e.stopPropagation(); $('#mcpPop').classList.toggle('on'); };
 	document.addEventListener('click', (e) => { if (!e.target.closest('#mcpPop')) $('#mcpPop').classList.remove('on'); });
@@ -99,7 +127,7 @@
 	$('#mcpCopy').onclick = async () => { await copyText(agent.cmd); toast(agent.json ? 'Config copied — paste it into the file' : 'Command copied — run it in your terminal'); };
 	$('#showResolved').checked = localStorage.getItem('vl:showResolved') === '1';
 	$('#showResolved').onchange = () => { localStorage.setItem('vl:showResolved', $('#showResolved').checked ? '1' : '0'); renderList(); renderMarks(); };
-	const visible = () => notes.filter((n) => $('#showResolved').checked || isOpenN(n));
+	const visible = () => notes.filter((n) => alive(n) && ($('#showResolved').checked || isOpenN(n)));
 
 	// H hides the markers of saved notes on the frame (pins and drawings), to see the picture clean
 	function toggleMarks() {
@@ -109,7 +137,7 @@
 
 	// ---- viewer: fit the stage (the video's aspect) inside the viewer body ------------------------------------------------
 	function fitStage() {
-		const b = $('#vbody'), w = b.clientWidth - 28, h = b.clientHeight - 28;
+		const b = $('#vbody'), w = b.clientWidth - 30, h = b.clientHeight - 30;
 		const sw = Math.max(120, Math.min(w, (h * W) / H));
 		stage.style.width = sw + 'px'; stage.style.height = (sw * H) / W + 'px';
 		if (compW) comp.style.transform = `scale(${sw / compW})`;
@@ -271,6 +299,7 @@
 	function setMode(m) {
 		if (m !== 'draw') closeText(true);
 		mode = m;
+		if (m) side(true);
 		if (m) v.pause();
 		if (m === 'draw') { if (draft.t2 != null) { draft = {}; hideSel(); } if (draft.t == null) draft.t = +v.currentTime.toFixed(3); }
 		document.body.classList.toggle('pointing', m === 'point');
@@ -284,15 +313,34 @@
 	$('#drawBtn').onclick = () => setMode(mode === 'draw' ? null : 'draw');
 
 	// ---- drawing: shapes in video pixels, so they sit on the same spot at any window size -----------------------------------------
-	// { k: 'pen', c, pts } · { k: 'arrow' | 'box', c, a, b } · { k: 'text', c, at, s }
-	let cur = null, inkKey = '', inkTool = 'pen', inkColor = '#ff4f8b';
+	// { k: 'pen', c, pts } · { k: 'arrow' | 'box', c, a, b } · { k: 'text', c, at, s }; w scales the stroke (or the text), 1 if absent
+	let cur = null, inkKey = '', inkTool = 'pen', inkColor = '#ff4f8b', inkW = 1;
+	const SIZES = [0.6, 1, 1.8];
 	const COLOR = { '#ff4f8b': 'pink', '#ff453a': 'red', '#ffd60a': 'yellow', '#32d74b': 'green', '#0a84ff': 'blue', '#ffffff': 'white' };
 	document.querySelectorAll('#drawbar .tool[data-tool]').forEach((b) => (b.onclick = () => {
 		closeText(true);
 		inkTool = b.dataset.tool;
 		document.querySelectorAll('#drawbar .tool[data-tool]').forEach((x) => x.classList.toggle('on', x === b));
 		document.body.classList.toggle('tool-text', inkTool === 'text');
+		document.body.classList.toggle('tool-erase', inkTool === 'erase');
 	}));
+	// the size button cycles thin · regular · thick
+	$('#inkSize').onclick = () => { inkW = SIZES[(SIZES.indexOf(inkW) + 1) % SIZES.length]; $('#inkSize').dataset.w = SIZES.indexOf(inkW); $('#inkSize').title = ['Thin', 'Regular', 'Thick'][SIZES.indexOf(inkW)] + ' stroke'; if (tIn.style.display === 'block') { tIn.style.fontSize = FS * inkW * scale() + 'px'; tIn.focus(); } };
+	// the eraser removes the mark nearest where you click (in the note being written)
+	function hitShape(p) {
+		const tol = SW * 3, dSeg = (q, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy, u = l ? Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l)) : 0; return Math.hypot(q[0] - a[0] - u * dx, q[1] - a[1] - u * dy); };
+		const list = draft.ink || [];
+		for (let i = list.length - 1; i >= 0; i--) {
+			const sh = list[i];
+			let d = Infinity;
+			if (sh.k === 'pen') for (let j = 1; j < sh.pts.length; j++) d = Math.min(d, dSeg(p, sh.pts[j - 1], sh.pts[j]));
+			else if (sh.k === 'arrow') d = dSeg(p, sh.a, sh.b);
+			else if (sh.k === 'box') { const [x0, y0, x1, y1] = [Math.min(sh.a[0], sh.b[0]), Math.min(sh.a[1], sh.b[1]), Math.max(sh.a[0], sh.b[0]), Math.max(sh.a[1], sh.b[1])]; d = Math.min(dSeg(p, [x0, y0], [x1, y0]), dSeg(p, [x1, y0], [x1, y1]), dSeg(p, [x1, y1], [x0, y1]), dSeg(p, [x0, y1], [x0, y0])); }
+			else if (sh.k === 'text') { const f = FS * (sh.w || 1); d = p[0] >= sh.at[0] - tol && p[0] <= sh.at[0] + sh.s.length * f * 0.62 + tol && p[1] >= sh.at[1] - tol && p[1] <= sh.at[1] + f + tol ? 0 : Infinity; }
+			if (d <= tol * (sh.w || 1)) return i;
+		}
+		return -1;
+	}
 	document.querySelectorAll('#drawbar .sw').forEach((b) => (b.onclick = () => {
 		inkColor = b.dataset.c;
 		document.querySelectorAll('#drawbar .sw').forEach((x) => x.classList.toggle('on', x === b));
@@ -305,8 +353,10 @@
 		ev.preventDefault();
 		const p = evPt(ev);
 		if (inkTool === 'text') { if (tIn.style.display === 'block') closeText(true); else openText(p); return; }
+		if (inkTool === 'erase') { const i = hitShape(p); if (i >= 0) { draft.ink.splice(i, 1); if (!draft.ink.length) delete draft.ink; renderInk(true); renderComposer(); } return; }
 		ink.setPointerCapture(ev.pointerId);
 		cur = inkTool === 'pen' ? { k: 'pen', c: inkColor, pts: [p] } : { k: inkTool, c: inkColor, a: p, b: p };
+		if (inkW !== 1) cur.w = inkW;
 		draft.ink = [...(draft.ink || []), cur];
 		renderInk();
 	});
@@ -320,7 +370,7 @@
 	const endShape = () => {
 		if (!cur) return;
 		if (cur.k === 'pen' && cur.pts.length < 2) cur.pts.push([cur.pts[0][0] + 1, cur.pts[0][1] + 1]);
-		if (cur.k !== 'pen' && Math.hypot(cur.b[0] - cur.a[0], cur.b[1] - cur.a[1]) < SW * 1.5) { draft.ink.pop(); if (!draft.ink.length) delete draft.ink; }
+		if (cur.k !== 'pen' && Math.hypot(cur.b[0] - cur.a[0], cur.b[1] - cur.a[1]) < SW * 1.5 * (cur.w || 1)) { draft.ink.pop(); if (!draft.ink.length) delete draft.ink; }
 		cur = null;
 		renderInk(true); renderComposer();
 	};
@@ -329,7 +379,7 @@
 	// text: a field on the frame where you clicked, in the colour you picked; Enter or clicking away places it
 	function openText(p) {
 		const k = scale();
-		Object.assign(tIn.style, { display: 'block', left: p[0] * k + 'px', top: p[1] * k - 2 + 'px', fontSize: FS * k + 'px', color: inkColor, borderColor: inkColor });
+		Object.assign(tIn.style, { display: 'block', left: p[0] * k + 'px', top: p[1] * k - 2 + 'px', fontSize: FS * inkW * k + 'px', color: inkColor, borderColor: inkColor });
 		tIn.value = ''; tIn.size = 4; tIn.dataset.at = p.join(','); tIn.dataset.c = inkColor;
 		setTimeout(() => tIn.focus(), 0);
 	}
@@ -337,13 +387,13 @@
 		if (tIn.style.display !== 'block') return;
 		const txt = tIn.value.trim();
 		tIn.style.display = 'none';
-		if (keep && txt) { draft.ink = [...(draft.ink || []), { k: 'text', c: inkColor, at: tIn.dataset.at.split(',').map(Number), s: txt }]; renderInk(true); renderComposer(); }
+		if (keep && txt) { const sh = { k: 'text', c: inkColor, at: tIn.dataset.at.split(',').map(Number), s: txt }; if (inkW !== 1) sh.w = inkW; draft.ink = [...(draft.ink || []), sh]; renderInk(true); renderComposer(); }
 	}
 	tIn.addEventListener('input', () => (tIn.size = Math.max(4, tIn.value.length + 1)));
 	tIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') closeText(true); else if (e.key === 'Escape') closeText(false); e.stopPropagation(); });
 	tIn.addEventListener('blur', () => closeText(true));
-	function shapeSvg(sh) {
-		const st = `style="stroke:${sh.c}"`;
+	function shapeSvg(sh, attrs = '', hit = false) {
+		const st = `${attrs} style="${hit ? `stroke:transparent;stroke-width:${SW * 4}` : `stroke:${sh.c};stroke-width:${SW * (sh.w || 1)}`}"`;
 		if (sh.k === 'pen') return `<path ${st} d="M${sh.pts.map((q) => q.join(' ')).join('L')}"/>`;
 		if (sh.k === 'box') return `<rect ${st} rx="${SW * 1.4}" x="${Math.min(sh.a[0], sh.b[0])}" y="${Math.min(sh.a[1], sh.b[1])}" width="${Math.abs(sh.b[0] - sh.a[0])}" height="${Math.abs(sh.b[1] - sh.a[1])}"/>`;
 		if (sh.k === 'arrow') {
@@ -351,7 +401,7 @@
 			const h1 = [x2 - L * Math.cos(an - 0.5), y2 - L * Math.sin(an - 0.5)], h2 = [x2 - L * Math.cos(an + 0.5), y2 - L * Math.sin(an + 0.5)];
 			return `<path ${st} d="M${x1} ${y1}L${x2} ${y2}M${h1.join(' ')}L${x2} ${y2}L${h2.join(' ')}"/>`;
 		}
-		if (sh.k === 'text') return `<text x="${sh.at[0]}" y="${sh.at[1]}" style="fill:${sh.c}">${esc(sh.s)}</text>`;
+		if (sh.k === 'text') return hit ? '' : `<text ${attrs} x="${sh.at[0]}" y="${sh.at[1]}" style="fill:${sh.c}${sh.w ? `;font-size:${FS * sh.w}px` : ''}">${esc(sh.s)}</text>`;
 		return '';
 	}
 	// the draft's shapes, plus the saved drawings of any note sitting on this frame
@@ -362,8 +412,14 @@
 		const k = vis.map((n) => n.id).join() + '|' + JSON.stringify(draft.ink || []);
 		if (k === inkKey && !force) return;
 		inkKey = k;
-		ink.innerHTML = [...vis.flatMap((n) => n.ink), ...(draft.ink || [])].map(shapeSvg).join('');
+		ink.innerHTML = vis.flatMap((n) => n.ink.map((sh) => shapeSvg(sh, `data-note="${n.id}"`) + shapeSvg(sh, `data-note="${n.id}" class="hit"`, true))).join('') + (draft.ink || []).map((sh, i) => shapeSvg(sh, `data-d="${i}"`)).join('');
 	}
+	// clicking a saved drawing on the frame picks its note, like clicking a pin
+	ink.addEventListener('click', (ev) => {
+		const s = ev.target.closest && ev.target.closest('[data-note]');
+		if (!s || mode) return;
+		ev.stopPropagation(); select(s.dataset.note);
+	});
 	// what a drawing says in words: its shape, colour, where it is, and what it covers (hit-tested on this frame)
 	function describeInk(list) {
 		const shapes = [], over = [];
@@ -395,7 +451,7 @@
 	function renderComposer() {
 		const t = draft.t != null ? draft.t : v.currentTime;
 		$('#cmTc').textContent = draft.t2 != null ? `${tcode(draft.t)} → ${tcode(draft.t2)}` : tcode(t);
-		$('#cmScene').textContent = sceneLabel(sceneAt(t)) + (draft.t == null ? ' · at the playhead' : '');
+		$('#cmScene').textContent = sceneLabel(sceneAt(t));
 		const chips = [];
 		if (mode === 'point') chips.push(`<span class="chip arm"><span>${vl ? 'Click anything in the frame…' : 'Click a spot in the frame…'}</span></span>`);
 		else if (draft.fx != null) chips.push(`<span class="chip pt"><span>◎ ${esc(draft.el ? elLabel(draft.el) : `spot ${Math.round(draft.fx * W)},${Math.round(draft.fy * H)}`)}</span><button data-x="pt" title="Detach">×</button></span>`);
@@ -430,10 +486,13 @@
 		const s = sceneAt(n.t);
 		n.scene = s.id || s.name;
 		n.said = n.kind === 'range' ? said(n.t, n.t2) : saidAround(n.t);
-		n.thumb = !editing || n.ink || n.fx != null ? await grab(n) : editing.thumb;
+		const fresh = !editing || n.ink || n.fx != null;
+		n.thumb = fresh ? await grab(n) : editing.thumb;
+		n.thumbAt = fresh ? new Date().toISOString() : editing.thumbAt || editing.created;
 		const wasEdit = !!editing;
 		try {
 			const saved = await api('/api/notes', 'POST', n);
+			markSeen(saved);
 			const i = notes.findIndex((x) => x.id === saved.id);
 			if (i >= 0) notes[i] = saved; else notes.push(saved);
 			notes.sort((a, b) => a.t - b.t);
@@ -462,7 +521,7 @@
 			g.drawImage(v, 0, 0, cw, ch);
 			g.lineCap = g.lineJoin = 'round';
 			for (const sh of n.ink || []) {
-				g.strokeStyle = g.fillStyle = sh.c; g.lineWidth = Math.max(2, SW * k);
+				g.strokeStyle = g.fillStyle = sh.c; g.lineWidth = Math.max(2, SW * (sh.w || 1) * k);
 				g.beginPath();
 				if (sh.k === 'pen') sh.pts.forEach((q, i) => g[i ? 'lineTo' : 'moveTo'](q[0] * k, q[1] * k));
 				else if (sh.k === 'box') g.rect(Math.min(sh.a[0], sh.b[0]) * k, Math.min(sh.a[1], sh.b[1]) * k, Math.abs(sh.b[0] - sh.a[0]) * k, Math.abs(sh.b[1] - sh.a[1]) * k);
@@ -470,7 +529,7 @@
 					const an = Math.atan2(sh.b[1] - sh.a[1], sh.b[0] - sh.a[0]), L = SW * 4.3 * k;
 					g.moveTo(sh.a[0] * k, sh.a[1] * k); g.lineTo(sh.b[0] * k, sh.b[1] * k);
 					g.moveTo(sh.b[0] * k - L * Math.cos(an - 0.5), sh.b[1] * k - L * Math.sin(an - 0.5)); g.lineTo(sh.b[0] * k, sh.b[1] * k); g.lineTo(sh.b[0] * k - L * Math.cos(an + 0.5), sh.b[1] * k - L * Math.sin(an + 0.5));
-				} else if (sh.k === 'text') { g.font = `700 ${FS * k}px -apple-system, sans-serif`; g.textBaseline = 'top'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.6)'; g.strokeText(sh.s, sh.at[0] * k, sh.at[1] * k); g.fillText(sh.s, sh.at[0] * k, sh.at[1] * k); continue; }
+				} else if (sh.k === 'text') { g.font = `700 ${FS * (sh.w || 1) * k}px -apple-system, sans-serif`; g.textBaseline = 'top'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.6)'; g.strokeText(sh.s, sh.at[0] * k, sh.at[1] * k); g.fillText(sh.s, sh.at[0] * k, sh.at[1] * k); continue; }
 				g.stroke();
 			}
 			if (n.fx != null) {
@@ -484,6 +543,11 @@
 	}
 	function renderPins() {
 		renderInk();
+		const a = activeId && notes.find((x) => x.id === activeId), box = $('#elBox');
+		if (a && a.el && a.el.box && Math.abs(a.t - v.currentTime) < 0.25 && alive(a) && (!editing || editing.id !== a.id) && ($('#showResolved').checked || isOpenN(a))) {
+			const k = scale();
+			Object.assign(box.style, { display: 'block', left: a.el.box.x * k + 'px', top: a.el.box.y * k + 'px', width: a.el.box.w * k + 'px', height: a.el.box.h * k + 'px' });
+		} else box.style.display = 'none';
 		overlay.querySelectorAll('.pin').forEach((p) => p.remove());
 		const t = v.currentTime;
 		const d = draft.fx != null ? draft : null;
@@ -536,7 +600,7 @@
 	const t2px = (t) => t * pps;
 	const px2t = (x) => Math.max(0, Math.min(DUR, x / pps));
 	function buildTimeline() {
-		pps = (scroll.clientWidth - 2) / DUR;
+		pps = (scroll.clientWidth - 18) / DUR;
 		inner.style.width = DUR * pps + 'px';
 		const ruler = $('#ruler');
 		ruler.innerHTML = '';
@@ -549,7 +613,7 @@
 			k.className = 'tick' + (big ? ' big' : '');
 			k.style.left = t2px(t) + 'px';
 			ruler.appendChild(k);
-			if (big) { const l = document.createElement('div'); l.className = 'lab'; l.style.left = t2px(t) + 'px'; l.textContent = tcode(t); ruler.appendChild(l); }
+			if (big) { const l = document.createElement('div'); l.className = 'lab'; l.style.left = t2px(t) + 'px'; const r = Math.round(t * 10) / 10, sec = Math.round(r); l.textContent = r < 60 ? `${r}s` : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; ruler.appendChild(l); }
 		}
 		const pic = $('#rowPic'); pic.innerHTML = '';
 		scenes().forEach((s, i) => {
@@ -566,7 +630,7 @@
 		tick(true);
 	}
 	function paintStrip() {
-		const TH = 84 - 6 - 2 - 19 - 15, TW = (TH * W) / H;
+		const TH = 60 - 8 - 2, TW = (TH * W) / H;
 		document.querySelectorAll('.clip.pic').forEach((e) => {
 			const s = scenes()[+e.dataset.i], a = s.start, w = t2px(sceneEnd(s) - a);
 			let html = '';
@@ -574,28 +638,75 @@
 			e.querySelector('.strip').innerHTML = html;
 		});
 	}
-	// the comments track: every note is the same tag. A moment is just its number, on its frame; a range is that tag stretched
-	// over its stretch, with the text if it fits. The width only ever means duration.
+	// the comments track: every note is the same tag. A moment is a round marker on its frame; moments too close to tell apart
+	// share one marker with a count. A range is the tag stretched over its stretch, with the text if it fits; the selected one
+	// gets trim handles. Hovering any of them previews the note.
 	function renderMarks() {
 		const row = $('#rowNotes');
 		row.innerHTML = '';
-		visible().forEach((n) => {
-			const i = notes.indexOf(n);
-			const e = document.createElement('div');
-			const k = n.kind === 'range' ? 'rg' : n.kind === 'time' ? 'tm' : n.kind === 'draw' ? 'dw' : 'pt';
-			e.className = 'mk ' + k + (n.id === activeId ? ' on' : '');
-			e.style.left = t2px(n.t) + 'px';
-			if (!isOpenN(n)) e.style.opacity = '0.45';
-			if (k === 'rg') { e.style.width = Math.max(22, t2px(n.t2 - n.t)) + 'px'; e.innerHTML = `<b>${i + 1}</b><span>${esc(n.text)}</span>`; }
-			else e.innerHTML = `<b>${n.ink ? '✎ ' : ''}${i + 1}</b>`;
-			e.title = `${i + 1}. ${n.text}`;
-			e.onmousedown = (ev) => { ev.stopPropagation(); select(n.id); };
-			row.appendChild(e);
+		const kindOf = (n) => (n.kind === 'range' ? 'rg' : n.kind === 'time' ? 'tm' : n.kind === 'draw' ? 'dw' : 'pt');
+		const shown = visible(), groups = [];
+		shown.filter((n) => n.kind !== 'range').sort((a, b) => a.t - b.t).forEach((n) => {
+			const g = groups[groups.length - 1];
+			if (g && t2px(n.t) - t2px(g[0].t) < 22) g.push(n); else groups.push([n]);
 		});
+		const mk = (list, k) => {
+			const e = document.createElement('div'), n = list[0], i = notes.indexOf(n);
+			e.className = 'mk ' + k + (list.some((x) => x.id === activeId) ? ' on' : '') + (list.some(unread) ? ' new' : '');
+			e.style.left = t2px(n.t) + 'px';
+			if (!list.some(isOpenN)) e.style.opacity = '0.45';
+			e.onmouseenter = () => showTip(e, list);
+			e.onmouseleave = hideTip;
+			row.appendChild(e);
+			return { e, n, i };
+		};
+		groups.forEach((list) => {
+			const { e, n, i } = mk(list, kindOf(list[0]));
+			e.innerHTML = `<b>${n.ink ? '✎ ' : ''}${i + 1}</b>${list.length > 1 ? `<em>+${list.length - 1}</em>` : ''}`;
+			// a shared marker: each click picks the next note in it
+			e.onmousedown = (ev) => { ev.stopPropagation(); hideTip(); const j = list.findIndex((x) => x.id === activeId); select(list[(j + 1) % list.length].id); };
+		});
+		shown.filter((n) => n.kind === 'range').forEach((n) => {
+			const { e, i } = mk([n], 'rg');
+			e.style.width = Math.max(22, t2px(n.t2 - n.t)) + 'px';
+			e.innerHTML = `<b>${i + 1}</b><span>${esc(n.text)}</span>${n.id === activeId ? '<i class="trim l" title="Drag to move the start"></i><i class="trim r" title="Drag to move the end"></i>' : ''}`;
+			e.onmousedown = (ev) => {
+				ev.stopPropagation(); hideTip();
+				const side = ev.target.classList.contains('trim') ? (ev.target.classList.contains('l') ? 't' : 't2') : null;
+				if (side) { ev.preventDefault(); trim = { n, side, e, t: n.t, t2: n.t2 }; v.pause(); return; }
+				select(n.id);
+			};
+		});
+	}
+	// the note preview over a marker: its frame, number, time, status and text
+	const tip = $('#mkTip');
+	function showTip(e, list) {
+		if (drag || trim) return;
+		tip.innerHTML = list.slice(0, 3).map((n) => {
+			const i = notes.indexOf(n), st = n.status || 'open';
+			const when = n.kind === 'range' ? `${tcode(n.t).slice(3)}–${tcode(n.t2).slice(3)}` : tcode(n.t).slice(3);
+			return `<div class="tp">${n.thumb ? `<img src="${n.thumb}">` : '<span class="noimg"></span>'}<div><div class="tp-hd"><span class="n ${n.kind === 'range' ? 'r' : n.kind === 'time' ? 't' : ''}">${i + 1}</span>${when}${st !== 'open' ? ` · ${st}` : ''}${unread(n) ? ' · <u>new reply</u>' : ''}</div><div class="tp-tx">${esc(n.text)}</div></div></div>`;
+		}).join('') + (list.length > 3 ? `<div class="tp-more">+${list.length - 3} more</div>` : '');
+		tip.classList.add('on');
+		const r = e.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+		tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+		tip.style.top = r.top - h - 10 + 'px';
+	}
+	function hideTip() { tip.classList.remove('on'); }
+	// trimming a range: the edge follows the mouse (the frame too), and the note is saved with its new stretch on release
+	let trim = null;
+	async function saveTrim(n) {
+		seek(n.t);
+		await new Promise((ok) => (v.seeking ? v.addEventListener('seeked', ok, { once: true }) : ok()));
+		const s = sceneAt(n.t);
+		const shot = await grab(n);
+		Object.assign(n, { scene: s.id || s.name, said: said(n.t, n.t2) }, shot ? { thumb: shot, thumbAt: new Date().toISOString() } : {});
+		try { await api('/api/notes', 'POST', n); toast('Range updated'); } catch (e) { toast('Could not save: ' + e.message); }
+		await refresh(true);
 	}
 	new ResizeObserver(() => buildTimeline()).observe(scroll);
 
-	// scrub, or drag across the filmstrip for a range; the ruler always scrubs
+	// the ruler and the filmstrip scrub; dragging along the comments track draws a range there, like the comment it becomes
 	let drag = null;
 	const sel = $('#sel');
 	function hideSel() { sel.style.display = 'none'; }
@@ -603,7 +714,7 @@
 	inner.addEventListener('mousedown', (ev) => {
 		if (ev.button !== 0) return;
 		ev.preventDefault();
-		drag = { x0: xIn(ev), moved: false, scrubOnly: !!ev.target.closest('#ruler') };
+		drag = { x0: xIn(ev), moved: false, scrubOnly: !ev.target.closest('#rowNotes') };
 		if (draft.t2 != null) { draft = {}; hideSel(); }
 		v.pause();
 		seek(px2t(drag.x0));
@@ -611,6 +722,13 @@
 	window.addEventListener('mousemove', (ev) => {
 		const b = scroll.getBoundingClientRect(), hov = $('#hover');
 		if (ev.clientY >= b.top && ev.clientY <= b.bottom && ev.clientX >= b.left && ev.clientX <= b.right) { hov.style.display = 'block'; hov.style.left = xIn(ev) + 'px'; } else hov.style.display = 'none';
+		if (trim) {
+			const t = +px2t(xIn(ev)).toFixed(3);
+			if (trim.side === 't') trim.t = Math.min(t, trim.t2 - 0.1); else trim.t2 = Math.max(t, trim.t + 0.1);
+			Object.assign(trim.e.style, { left: t2px(trim.t) + 'px', width: Math.max(22, t2px(trim.t2 - trim.t)) + 'px' });
+			seek(trim.side === 't' ? trim.t : trim.t2);
+			return;
+		}
 		if (!drag) return;
 		const x = xIn(ev);
 		if (Math.abs(x - drag.x0) > 4) drag.moved = true;
@@ -621,6 +739,7 @@
 		seek(px2t(x));
 	});
 	window.addEventListener('mouseup', (ev) => {
+		if (trim) { const { n, t, t2 } = trim; trim = null; if (t !== n.t || t2 !== n.t2) { n.t = t; n.t2 = t2; saveTrim(n); } return; }
 		if (!drag) return;
 		const x = xIn(ev);
 		if (drag.moved && !drag.scrubOnly) {
@@ -653,7 +772,7 @@
 		const hx = t2px(t);
 		$('#head').style.left = hx + 'px';
 		const code = tcode(t);
-		$('#tc').innerHTML = `${code} <span class="of">/ ${tcode(DUR)}</span>`;
+		$('#tc').innerHTML = DUR < 3600 ? `${code.slice(3)} <span class="of">/ ${tcode(DUR).slice(3)}</span>` : `${code} <span class="of">/ ${tcode(DUR)}</span>`;
 		const s = sceneAt(t);
 		if (s !== lastScene) {
 			lastScene = s;
@@ -675,31 +794,76 @@
 		if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
 		else if (e.key === 'ArrowRight') { e.preventDefault(); v.pause(); seek(v.currentTime + step); }
 		else if (e.key === 'ArrowLeft') { e.preventDefault(); v.pause(); seek(v.currentTime - step); }
-		else if (e.key === 'ArrowDown') { e.preventDefault(); stepScene(1); }
-		else if (e.key === 'ArrowUp') { e.preventDefault(); stepScene(-1); }
+		else if (e.key === 'ArrowDown') { e.preventDefault(); e.shiftKey ? stepNote(1) : stepScene(1); }
+		else if (e.key === 'ArrowUp') { e.preventDefault(); e.shiftKey ? stepNote(-1) : stepScene(-1); }
 		else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); v.pause(); $('#cmText').focus(); }
 		else if (e.key === 'p' || e.key === 'P') setMode(mode === 'point' ? null : 'point');
 		else if (e.key === 'd' || e.key === 'D') setMode(mode === 'draw' ? null : 'draw');
 		else if (e.key === 'm' || e.key === 'M') $('#audioBtn').click();
 		else if (e.key === 'h' || e.key === 'H') toggleMarks();
+		else if (e.key === 's' || e.key === 'S') $('#sideBtn').click();
 		else if (e.key === 'f' || e.key === 'F') $('#fs').click();
 		else if (e.key === 'Escape') { if (mode) setMode(null); else { draft = {}; hideSel(); renderComposer(); renderInk(true); } }
 	});
 
 	// ---- notes list: statuses and the thread with your agent -----------------------------------------------------------------------
+	// the next or previous note in time, from the selected one, or from the playhead
+	function stepNote(d) {
+		const list = visible().slice().sort((a, b) => a.t - b.t);
+		if (!list.length) return;
+		const i = list.findIndex((n) => n.id === activeId), t = v.currentTime;
+		let j = i >= 0 ? i + d : d > 0 ? list.findIndex((n) => n.t > t + 1e-3) : list.map((n) => n.t < t - 1e-3).lastIndexOf(true);
+		if (j < 0 || j >= list.length) j = d > 0 ? list.length - 1 : 0;
+		select(list[j].id);
+	}
+	function edit(n) {
+		v.pause(); seek(n.t);
+		editing = n;
+		draft = { t: n.t, t2: n.t2, fx: n.fx, fy: n.fy, el: n.el, ink: n.ink ? JSON.parse(JSON.stringify(n.ink)) : undefined };
+		$('#cmText').value = n.text; renderComposer(); $('#cmText').focus();
+	}
+	function remove(n) {
+		if (activeId === n.id) activeId = null;
+		if (editing && editing.id === n.id) resetComposer();
+		gone.set(n.id, setTimeout(() => { gone.delete(n.id); notes = notes.filter((x) => x.id !== n.id); api(`/api/notes/${n.id}`, 'DELETE').catch((e) => { toast('Could not delete: ' + e.message); refresh(true); }); counts(); renderList(); renderMarks(); }, 5000));
+		counts(); renderList(); renderMarks();
+		toast('Note deleted', { label: 'Undo', run: () => { clearTimeout(gone.get(n.id)); gone.delete(n.id); counts(); renderList(); renderMarks(); } });
+	}
+	// deletes still waiting on their Undo happen now: before copying, or when the page goes away
+	function flushGone(keepalive) {
+		const done = [];
+		for (const [id, t] of gone) { clearTimeout(t); gone.delete(id); notes = notes.filter((x) => x.id !== id); done.push(fetch(`/api/notes/${id}`, { method: 'DELETE', keepalive: !!keepalive }).catch(() => {})); }
+		return Promise.all(done);
+	}
+	window.addEventListener('pagehide', () => flushGone(true));
+	// the frame at a note's time in the video as it is now, for Before / Now once the video has been re-rendered
+	const LOADED = +((/[?&]v=(\d+)/.exec(P.video) || [])[1] || 0), nowShots = new Map();
+	const rerendered = (n) => { const at = Date.parse(n.thumbAt || n.created); return !!n.thumb && at > 0 && LOADED > at + 1000; };
+	async function nowShot(n) {
+		const key = n.id + '@' + n.t;
+		if (nowShots.has(key)) return nowShots.get(key);
+		if (v.seeking) await new Promise((ok) => v.addEventListener('seeked', ok, { once: true }));
+		if (Math.abs(v.currentTime - n.t) > 0.05) return null;
+		const c = document.createElement('canvas'); c.width = 320; c.height = Math.round((320 * H) / W);
+		c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+		const url = c.toDataURL('image/jpeg', 0.8);
+		nowShots.set(key, url);
+		return url;
+	}
 	function select(id) {
 		activeId = id;
+		side(true);
 		const n = notes.find((x) => x.id === id);
-		if (n) { v.pause(); seek(n.t); }
-		renderList(); renderMarks();
+		if (n) { v.pause(); seek(n.t); markSeen(n); }
+		counts(); renderList(); renderMarks();
 	}
 	function renderList() {
 		const list = $('#list');
 		const shown = visible();
 		if (!shown.length) {
-			list.innerHTML = notes.length
+			list.innerHTML = notes.some(alive)
 				? '<div class="empty">Every note is closed. Tick <b>Show resolved</b> to see them.</div>'
-				: `<div class="empty">Write above: a note lands at the playhead. <b>Point</b> (P) attaches ${vl ? 'the element you click' : 'a spot'} in the frame, <b>Draw</b> (D) marks it up, and <b>dragging the filmstrip</b> makes a range.<br><br>Your agent reads these over MCP (<b>Connect agent</b>), or <b>Copy for agent</b> and paste.</div>`;
+				: `<div class="empty">Write above: a note lands at the playhead. <b>Point</b> (P) attaches ${vl ? 'the element you click' : 'a spot'} in the frame, <b>Draw</b> (D) marks it up, and <b>dragging along the comments track</b> makes a range.<br><br>Your agent reads these over MCP (<b>Connect agent</b>), or <b>Copy for agent</b> and paste.</div>`;
 			return;
 		}
 		const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('.reply');
@@ -714,61 +878,100 @@
 			const when = n.kind === 'range' ? `${tcode(n.t).slice(3)}–${tcode(n.t2).slice(3)}` : tcode(n.t).slice(3);
 			const cls = n.kind === 'range' ? 'r' : n.kind === 'time' ? 't' : '';
 			const s = sceneAt(n.t);
-			e.innerHTML = `${n.thumb ? `<img src="${n.thumb}">` : '<div class="noimg"></div>'}<div style="min-width:0"><div class="hd"><span class="n ${cls}">${i + 1}</span><span class="tcs">${when}</span>${st !== 'open' ? `<span class="st ${st}">${st}</span>` : `<span class="scn">${esc(scenes().length > 1 ? s.name : '')}</span>`}<button class="x" title="Delete">×</button></div><div class="txt"></div>${n.fx != null || n.ink ? `<div class="el"></div>` : ''}${n.by === 'agent' ? '<div class="tags"><span class="tagp agent">from agent</span></div>' : ''}</div>`;
+			if (n.id === activeId && !document.documentElement.classList.contains('side-off')) markSeen(n);
+			const isNew = unread(n);
+			e.innerHTML = `${n.thumb ? `<img src="${n.thumb}">` : '<div class="noimg"></div>'}<div style="min-width:0"><div class="hd"><span class="n ${cls}">${i + 1}</span><span class="tcs">${when}</span>${isNew ? '<span class="new" title="New from your agent"></span>' : ''}${st !== 'open' ? `<span class="st ${st}">${st}</span>` : `<span class="scn">${esc(scenes().length > 1 ? s.name : '')}</span>`}<span class="acts"><button class="ed" title="Edit"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16z"/></svg></button><button class="x" title="Delete">×</button></span></div><div class="txt"></div>${n.fx != null || n.ink ? `<div class="el"></div>` : ''}${n.by === 'agent' ? '<div class="tags"><span class="tagp agent">from agent</span></div>' : ''}</div>`;
 			e.querySelector('.txt').textContent = n.text;
 			if (n.fx != null || n.ink) e.querySelector('.el').textContent = [n.fx != null && '◎ ' + (n.el ? elLabel(n.el) : `spot ${Math.round(n.fx * W)},${Math.round(n.fy * H)}`), n.ink && '✎ ' + ((n.inkInfo && n.inkInfo.shapes[0]) || 'drawing')].filter(Boolean).join(' · ');
 			if ((n.thread || []).length) {
 				const th = document.createElement('div');
 				th.className = 'thread';
-				th.innerHTML = n.thread.map((m) => `<div class="msg ${m.from === 'agent' ? 'agent' : ''}"><i>${m.from === 'agent' ? 'Agent' : 'You'}</i>${esc(m.text)}</div>`).join('');
+				th.innerHTML = n.thread.map((m) => `<div class="msg ${m.from === 'agent' ? 'agent' : ''}"><i>${m.from === 'agent' ? 'Agent' : 'You'}${m.at ? `<span class="ago" data-at="${esc(m.at)}">${ago(m.at)}</span>` : ''}</i>${esc(m.text)}</div>`).join('');
 				e.appendChild(th);
+			}
+			if (n.id === activeId && rerendered(n)) {
+				// the note's frame when you wrote it, and the same moment in the video as it is now
+				const c = document.createElement('div');
+				c.className = 'cmp';
+				c.innerHTML = `<figure><img src="${n.thumb}"><figcaption>Before</figcaption></figure><figure><img class="now"><figcaption>Now</figcaption></figure>`;
+				nowShot(n).then((url) => { if (url) c.querySelector('.now').src = url; });
+				e.appendChild(c);
 			}
 			if (n.id === activeId) {
 				const r = document.createElement('div');
 				r.className = 'reply';
-				r.innerHTML = `<input placeholder="${n.thread && n.thread.length ? 'Reply…' : 'Add to this note…'}" /><button class="btn" data-a="reply">Send</button><button class="btn ghost" data-a="status">${open ? 'Resolve' : 'Reopen'}</button>`;
-				const input = r.querySelector('input');
-				const send = async () => { const t = input.value.trim(); if (!t) return; input.value = ''; await api(`/api/notes/${n.id}/reply`, 'POST', { text: t }); await refresh(true); };
-				input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') send(); ev.stopPropagation(); });
+				r.innerHTML = `<textarea rows="1" placeholder="${n.thread && n.thread.length ? 'Reply…' : 'Add to this note…'}"></textarea><button class="btn" data-a="reply">Send</button><button class="btn ghost" data-a="status">${open ? 'Resolve' : 'Reopen'}</button>`;
+				const input = r.querySelector('textarea');
+				// grows with what you write; Enter sends, Shift+Enter starts a new line
+				const grow = () => { input.style.height = 'auto'; input.style.height = Math.min(140, input.scrollHeight) + 'px'; };
+				const send = async () => { const t = input.value.trim(); if (!t) return; input.value = ''; grow(); await api(`/api/notes/${n.id}/reply`, 'POST', { text: t }); input.blur(); await refresh(true); };
+				input.addEventListener('input', grow);
+				input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); } else if (ev.key === 'Escape') input.blur(); ev.stopPropagation(); });
 				r.querySelector('[data-a=reply]').onclick = (ev) => { ev.stopPropagation(); send(); };
-				r.querySelector('[data-a=status]').onclick = async (ev) => { ev.stopPropagation(); await api(`/api/notes/${n.id}/status`, 'POST', { status: open ? 'resolved' : 'open' }); await refresh(true); };
+				r.querySelector('[data-a=status]').onclick = async (ev) => { ev.stopPropagation(); await api(`/api/notes/${n.id}/status`, 'POST', { status: open ? 'resolved' : 'open' }); await refresh(true); const x = notes.find((y) => y.id === n.id); if (x) markSeen(x); counts(); renderMarks(); };
 				r.onclick = (ev) => ev.stopPropagation();
 				e.appendChild(r);
 			}
 			e.onclick = () => select(n.id);
-			e.ondblclick = (ev) => {
-				if (ev.target.closest('.reply')) return;
-				v.pause(); seek(n.t);
-				editing = n;
-				draft = { t: n.t, t2: n.t2, fx: n.fx, fy: n.fy, el: n.el, ink: n.ink ? JSON.parse(JSON.stringify(n.ink)) : undefined };
-				$('#cmText').value = n.text; renderComposer(); $('#cmText').focus();
-			};
-			e.title = 'Double-click to edit';
-			e.querySelector('.x').onclick = async (ev) => { ev.stopPropagation(); await api(`/api/notes/${n.id}`, 'DELETE'); notes = notes.filter((x) => x.id !== n.id); counts(); renderList(); renderMarks(); };
+			e.ondblclick = (ev) => { if (!ev.target.closest('.reply')) edit(n); };
+			e.title = 'Double-click to edit · ⇧↑ ⇧↓ move between notes';
+			e.querySelector('.ed').onclick = (ev) => { ev.stopPropagation(); edit(n); };
+			e.querySelector('.x').onclick = (ev) => { ev.stopPropagation(); remove(n); };
 			list.appendChild(e);
 		});
 		const a = list.querySelector('.note.active'); if (a) a.scrollIntoView({ block: 'nearest' });
 	}
-	$('#clear').onclick = async () => { if (notes.length && confirm('Delete all notes on this video?')) { await api('/api/notes', 'DELETE'); notes = []; counts(); renderList(); renderMarks(); } };
+	// a confirm dialog in the app's own style; Enter confirms, Esc or a click outside cancels, and no shortcut leaks through
+	function ask(title, body, yes) {
+		const m = $('#modal');
+		$('#modalTitle').textContent = title; $('#modalBody').textContent = body; $('#modalYes').textContent = yes;
+		const back = document.activeElement;
+		m.classList.add('on');
+		$('#modalYes').focus();
+		return new Promise((ok) => {
+			const done = (v) => { m.classList.remove('on'); window.removeEventListener('keydown', key, true); m.onclick = $('#modalYes').onclick = $('#modalNo').onclick = null; if (back && back.focus) back.focus(); ok(v); };
+			const key = (e) => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); done(false); } else if (e.key === 'Enter') { e.preventDefault(); done(document.activeElement !== $('#modalNo')); } };
+			window.addEventListener('keydown', key, true);
+			m.onclick = (e) => { if (e.target === m) done(false); };
+			$('#modalYes').onclick = () => done(true);
+			$('#modalNo').onclick = () => done(false);
+		});
+	}
+	$('#clear').onclick = async () => {
+		if (!notes.length) return;
+		if (!(await ask('Delete all notes?', `This removes all ${notes.length} note${notes.length > 1 ? 's' : ''} on this video, with their replies. It can’t be undone.`, 'Delete all'))) return;
+		gone.forEach(clearTimeout); gone.clear();
+		await api('/api/notes', 'DELETE'); notes = []; counts(); renderList(); renderMarks();
+	};
 
 	// ---- sync with the file: your agent may reply or resolve while this is open ---------------------------------------------------
 	async function refresh(force) {
 		const r = await fetch('/api/review').then((x) => x.json()).catch(() => null);
-		if (!r || (!force && r.updated === updated)) return;
+		if (!r || !Array.isArray(r.notes)) return;
+		// a re-render of the video: offer to load it once the file has stopped changing
+		if (r.videoStamp && LOADED && r.videoStamp !== LOADED) {
+			if (refresh.last === r.videoStamp && refresh.told !== r.videoStamp) { refresh.told = r.videoStamp; toast('The video was re-rendered', { label: 'Reload', ms: 12000, run: () => location.reload() }); }
+			refresh.last = r.videoStamp;
+		}
+		if (!force && r.updated === updated) return;
 		const agentMoved = updated && (r.notes || []).some((n) => { const o = notes.find((x) => x.id === n.id); return o ? (o.thread || []).length !== (n.thread || []).length || o.status !== n.status : n.by === 'agent'; });
 		updated = r.updated;
 		notes = r.notes || [];
+		if (!seen) { seen = {}; notes.forEach((n) => (seen[n.id] = stamp(n))); localStorage.setItem(SEEN, JSON.stringify(seen)); }
 		counts(); renderList(); renderMarks();
 		if (agentMoved && !force) toast('Your agent updated the notes');
 	}
 	await refresh(true);
 	setInterval(refresh, 2000);
+	// reply times stay current
+	setInterval(() => document.querySelectorAll('.msg .ago').forEach((e) => (e.textContent = ago(e.dataset.at))), 30000);
 
 	// ---- copy for an agent (the same markdown the MCP server returns) ---------------------------------------------------------------
 	async function copyText(s) {
 		try { await navigator.clipboard.writeText(s); } catch { const ta = document.createElement('textarea'); ta.value = s; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
 	}
 	$('#copy').onclick = async () => {
+		await flushGone();
 		const open = notes.filter(isOpenN).length;
 		if (!open) { toast('No open notes'); return; }
 		await copyText(await fetch('/api/markdown?status=open').then((r) => r.text()));
