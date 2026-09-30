@@ -1,6 +1,6 @@
 {
   "name": "telestrator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Iterate on videos with your agent, frame by frame. Frame-accurate feedback on rendered videos for AI agents: point, draw and comment on any frame, and your agent reads it over MCP. Works with HyperFrames, Remotion, or any MP4.",
   "homepage": "https://telestrator.tv",
   "repository": {
