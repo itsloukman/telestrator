@@ -16,7 +16,7 @@ const MIME = {
 	'.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4', '.aac': 'audio/aac'
 };
 // fields the UI may write; status and the thread are changed through their own routes, so a stale tab can't undo an agent
-const EDITABLE = ['kind', 't', 't2', 'fx', 'fy', 'el', 'ink', 'inkInfo', 'text', 'said', 'scene', 'thumb'];
+const EDITABLE = ['kind', 't', 't2', 'fx', 'fy', 'el', 'ink', 'inkInfo', 'text', 'said', 'scene', 'thumb', 'thumbAt'];
 // optional attachments: dropped when an edit leaves them out
 const OPTIONAL = ['t2', 'fx', 'fy', 'el', 'ink', 'inkInfo'];
 
@@ -68,6 +68,8 @@ export function startServer(project, { port = 4180, host = '127.0.0.1' } = {}) {
 		r.lines = project.lines;
 	});
 	const vstamp = () => Math.round(statSync(project.video).mtimeMs);
+	// mid re-render the file may be missing for a moment: no version then, rather than an error
+	const vstampSafe = () => { try { return vstamp(); } catch { return null; } };
 
 	const server = createServer(async (req, res) => {
 		const url = new URL(req.url, 'http://x');
@@ -103,7 +105,8 @@ export function startServer(project, { port = 4180, host = '127.0.0.1' } = {}) {
 					videoPath: project.video
 				});
 			}
-			if (p === '/api/review' && req.method === 'GET') return send(res, 200, readReview(file));
+			// the video's version too, so an open review notices a re-render
+			if (p === '/api/review' && req.method === 'GET') { const rv = readReview(file); return send(res, 200, rv && { ...rv, videoStamp: vstampSafe() }); }
 			// what only the browser can measure: duration, frame size, and the scenes the composition declares
 			if (p === '/api/review/meta' && req.method === 'POST') {
 				const b = await body(req);
